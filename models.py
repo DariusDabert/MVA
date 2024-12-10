@@ -5,24 +5,6 @@ import torch.nn.functional as F
 from torch_geometric.nn import global_add_pool
 
 
-# TO MODIFY
-class GaussianMixture(nn.Module):
-    def __init__(self, n_components, n_features):
-        super(GaussianMixture, self).__init__()
-        self.n_components = n_components
-        self.n_features = n_features
-        self.pi = nn.Parameter(torch.ones(n_components)/n_components)
-        self.mu = nn.Parameter(torch.randn(n_components, n_features))
-        self.log_sigma = nn.Parameter(torch.zeros(n_components, n_features))
-    def forward(self, x):
-        x = x.unsqueeze(1).expand(-1, self.n_components, -1)
-        pi = self.pi.unsqueeze(0).expand(x.size(0), -1)
-        mu = self.mu.unsqueeze(0).expand(x.size(0), -1, -1)
-        log_sigma = self.log_sigma.unsqueeze(0).expand(x.size(0), -1, -1)
-        log_prob = -0.5 * (torch.log(2 * np.pi) + 2 * log_sigma + (x - mu).pow(2) / log_sigma.exp())
-        log_prob = log_prob.sum(-1) + torch.log(pi)
-        return log_prob
-
 # Decoder
 class Decoder(nn.Module):
     def __init__(self, latent_dim, hidden_dims, output_dim, n_layers, dropout=0.2):
@@ -87,7 +69,7 @@ class Encoder(nn.Module):
 
 # Variational Autoencoder
 class VariationalAutoEncoder(nn.Module):
-    def __init__(self, input_dim, hidden_dim_enc, hidden_dim_dec, latent_dim, n_layers_enc, n_layers_dec, GMM=False):
+    def __init__(self, input_dim, hidden_dim_enc, hidden_dim_dec, latent_dim, n_layers_enc, n_layers_dec):
         super(VariationalAutoEncoder, self).__init__()
         self.input_dim = input_dim
         self.encoder = Encoder(input_dim, hidden_dim_enc, n_layers_enc)
@@ -109,7 +91,7 @@ class VariationalAutoEncoder(nn.Module):
         out = out * (1 - torch.eye(out.size(-2), out.size(-1), device=out.device))
         return out
 
-    def loss_function(self, x, beta=0.05):
+    def loss_function(self, x, distribution):
         x = x.to_dense()
         x_latent = self.encoder(x)
     
@@ -121,8 +103,71 @@ class VariationalAutoEncoder(nn.Module):
         lambda_ = self.decoder(z)
         
         # reconstruction loss from a poisson law (To modify)
-        recon = - torch.distributions.Poisson(lambda_).log_prob(x).sum()
+        recon = - distribution(lambda_).log_prob(x).sum()
         kld = - 0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
         loss = recon + kld
 
         return loss, recon, kld
+
+
+
+
+# Variational Autoencoder
+class GMVariationalAutoEncoder(nn.Module):
+    def __init__(self, input_dim, hidden_dim_enc, hidden_dim_dec, latent_dim, n_layers_enc, n_layers_dec, nb_classes):
+        super(VariationalAutoEncoder, self).__init__()
+        self.input_dim = input_dim
+        self.nb_classes = nb_classes
+        self.encoder = Encoder(input_dim, hidden_dim_enc, n_layers_enc)
+
+        self.fc_pi = nn.Sequential([nn.Linear(hidden_dim_enc[-1], nb_classes),
+                                      nn.Softmax()])
+        
+        self.fc_mus = torch.nn.ModuleList()
+        for i in range(nb_classes):
+            self.fc_mus.append(nn.Linear(hidden_dim_enc[-1], latent_dim))
+        self.fc_logvars = torch.nn.ModuleList()
+        for i in range(nb_classes):
+            self.fc_logvars.append(nn.Sequential([nn.Linear(hidden_dim_enc[-1], latent_dim),
+                                        nn.ReLU()]))
+            
+        self.decoder = Decoder(latent_dim, hidden_dim_dec, input_dim, n_layers_dec) 
+
+    def reparameterize(self, mu, logvar, eps_scale=1.):
+        if self.training:
+            std = logvar.mul(0.5).exp_()
+            eps = torch.randn_like(std) * eps_scale
+            return eps.mul(std).add_(mu)
+        else:
+            return mu
+
+    def decode(self, mu):
+        out = self.decoder(mu)
+        out = torch.sigmoid(out)
+        out = out * (1 - torch.eye(out.size(-2), out.size(-1), device=out.device))
+        return out
+
+    def loss_function(self, x, distribution):
+        x = x.to_dense()
+        x_latent = self.encoder(x)
+
+        pi = self.fc_pi(x_latent)
+        mus = [fc_mu(x_latent) for fc_mu in self.fc_mus]
+        logvars = [fc_logvar(x_latent) for fc_logvar in self.fc_logvars]
+
+        recon = 0
+        kld = 0
+        kld_pi = 0
+        
+        for i in range(len(mus)):
+            mu = mus[i]
+            logvar = logvars[i]
+            z = self.reparameterize(mu, logvar)
+
+            lambda_ = self.decoder(z)
+            recon -= pi[i] * ( distribution(lambda_).log_prob(x).sum())
+            kld -= pi[i] * ( 0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp()))
+            kld_pi -= pi[i] * torch.log(self. nb_classes * pi[i] )
+        loss = recon + kld + kld_pi
+
+        return loss, recon, kld, kld_pi
