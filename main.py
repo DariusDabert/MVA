@@ -40,10 +40,11 @@ X_torch = sparse_mx_to_torch_sparse(X).to(device)
 # Initialize autoencoder
 autoencoder = VariationalAutoEncoder(input_feats, hidden_dim_encoder, hidden_dim_decoder, latent_dim, n_layers_encoder, n_layers_decoder).to(device)
 optimizer = torch.optim.Adam(autoencoder.parameters(), lr=0.001)
+distribution = torch.distributions.Poisson 
 
 trainer = Trainer(autoencoder, optimizer, device)
 
-trainer.train(X_torch, y, epochs, batch_size)
+trainer.train(X_torch, y, distribution, epochs, batch_size)
 
 # Save model
 torch.save(autoencoder.state_dict(), 'autoencoder.pth')

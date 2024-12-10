@@ -20,7 +20,7 @@ class Trainer():
         self.optimizer = optimizer
         self.device = device
     
-    def train(self, X, y, epochs, batch_size):
+    def train(self, X, y, distribution, epochs, batch_size):
         # Slit into training and validation sets
         idx = np.random.permutation(len(X))
         train_idx = [int(i) for i in idx[:int(0.81*idx.size)]]
@@ -57,7 +57,7 @@ class Trainer():
                 y_batch = torch.FloatTensor(y_batch).to(self.device)
                 
                 self.optimizer.zero_grad()
-                loss, recon, kld  = self.model.loss_function(x_batch, y_batch)
+                loss, recon, kld  = self.model.loss_function(x_batch, distribution)
                 train_loss_all_recon += recon.item()
                 train_loss_all_kld += kld.item()
                 loss.backward()
@@ -83,7 +83,7 @@ class Trainer():
 
                 y_batch = torch.FloatTensor(y_batch).to(self.device)
 
-                loss, recon, kld  = self.model.loss_function(x_batch, y_batch)
+                loss, recon, kld  = self.model.loss_function(x_batch, distribution)
                 val_loss_all_recon += recon.item()
                 val_loss_all_kld += kld.item()
                 val_loss_all += loss.item()
