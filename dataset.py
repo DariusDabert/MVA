@@ -5,50 +5,54 @@ import tarfile
 from scipy.io import mmread
 
 pbmc_definition = {
-    'cd19': {
-        'url': 'http://cf.10xgenomics.com/samples/cell-exp/1.1.0/b_cells/b_cells_filtered_gene_bc_matrices.tar.gz',
-        'data_path': 'filtered_matrices_mex/hg19/matrix.mtx',
-        'compressed': True
-    },
-    'cd14': {
-        'url': 'http://cf.10xgenomics.com/samples/cell-exp/1.1.0/cd34/cd34_filtered_gene_bc_matrices.tar.gz',
-        'data_path': 'filtered_matrices_mex/hg19/matrix.mtx',
-        'compressed': True
-    },
-    'cd4': {
-        'url': 'http://cf.10xgenomics.com/samples/cell-exp/1.1.0/cd4_t_helper/cd4_t_helper_filtered_gene_bc_matrices.tar.gz',
-        'data_path': 'filtered_matrices_mex/hg19/matrix.mtx',
-        'compressed': True
-    },
-    'cd4-25': {
-        'url': 'http://cf.10xgenomics.com/samples/cell-exp/1.1.0/regulatory_t/regulatory_t_filtered_gene_bc_matrices.tar.gz',
-        'data_path': 'filtered_matrices_mex/hg19/matrix.mtx',
-        'compressed': True
-    },
-    'cd4-45-25': {
-        'url': 'http://cf.10xgenomics.com/samples/cell-exp/1.1.0/naive_t/naive_t_filtered_gene_bc_matrices.tar.gz',
-        'data_path': 'filtered_matrices_mex/hg19/matrix.mtx',
-        'compressed': True
-    },
-    'cd4-45': {
-        'url': 'http://cf.10xgenomics.com/samples/cell-exp/1.1.0/memory_t/memory_t_filtered_gene_bc_matrices.tar.gz',
-        'data_path': 'filtered_matrices_mex/hg19/matrix.mtx',
-        'compressed': True
-    },
-    'cd56': {
-        'url': 'http://cf.10xgenomics.com/samples/cell-exp/1.1.0/cd56_nk/cd56_nk_filtered_gene_bc_matrices.tar.gz',
-        'data_path': 'filtered_matrices_mex/hg19/matrix.mtx',
-        'compressed': True
-    },
-    'cd8': {
-        'url': 'http://cf.10xgenomics.com/samples/cell-exp/1.1.0/cytotoxic_t/cytotoxic_t_filtered_gene_bc_matrices.tar.gz',
-        'data_path': 'filtered_matrices_mex/hg19/matrix.mtx',
-        'compressed': True
-    },
-    'cd8-45': {
-        'url': 'http://cf.10xgenomics.com/samples/cell-exp/1.1.0/naive_cytotoxic/naive_cytotoxic_filtered_gene_bc_matrices.tar.gz',
-        'data_path': 'filtered_matrices_mex/hg19/matrix.mtx',
-        'compressed': True
+    'name': 'PBMC',
+    'labels': 'from_dataset',
+    'data' : {
+        'cd19': {
+            'url': 'http://cf.10xgenomics.com/samples/cell-exp/1.1.0/b_cells/b_cells_filtered_gene_bc_matrices.tar.gz',
+            'data_path': 'filtered_matrices_mex/hg19/matrix.mtx',
+            'compressed': True
+        },
+        'cd14': {
+            'url': 'http://cf.10xgenomics.com/samples/cell-exp/1.1.0/cd34/cd34_filtered_gene_bc_matrices.tar.gz',
+            'data_path': 'filtered_matrices_mex/hg19/matrix.mtx',
+            'compressed': True
+        },
+        'cd4': {
+            'url': 'http://cf.10xgenomics.com/samples/cell-exp/1.1.0/cd4_t_helper/cd4_t_helper_filtered_gene_bc_matrices.tar.gz',
+            'data_path': 'filtered_matrices_mex/hg19/matrix.mtx',
+            'compressed': True
+        },
+        'cd4-25': {
+            'url': 'http://cf.10xgenomics.com/samples/cell-exp/1.1.0/regulatory_t/regulatory_t_filtered_gene_bc_matrices.tar.gz',
+            'data_path': 'filtered_matrices_mex/hg19/matrix.mtx',
+            'compressed': True
+        },
+        'cd4-45-25': {
+            'url': 'http://cf.10xgenomics.com/samples/cell-exp/1.1.0/naive_t/naive_t_filtered_gene_bc_matrices.tar.gz',
+            'data_path': 'filtered_matrices_mex/hg19/matrix.mtx',
+            'compressed': True
+        },
+        'cd4-45': {
+            'url': 'http://cf.10xgenomics.com/samples/cell-exp/1.1.0/memory_t/memory_t_filtered_gene_bc_matrices.tar.gz',
+            'data_path': 'filtered_matrices_mex/hg19/matrix.mtx',
+            'compressed': True
+        },
+        'cd56': {
+            'url': 'http://cf.10xgenomics.com/samples/cell-exp/1.1.0/cd56_nk/cd56_nk_filtered_gene_bc_matrices.tar.gz',
+            'data_path': 'filtered_matrices_mex/hg19/matrix.mtx',
+            'compressed': True
+        },
+        'cd8': {
+            'url': 'http://cf.10xgenomics.com/samples/cell-exp/1.1.0/cytotoxic_t/cytotoxic_t_filtered_gene_bc_matrices.tar.gz',
+            'data_path': 'filtered_matrices_mex/hg19/matrix.mtx',
+            'compressed': True
+        },
+        'cd8-45': {
+            'url': 'http://cf.10xgenomics.com/samples/cell-exp/1.1.0/naive_cytotoxic/naive_cytotoxic_filtered_gene_bc_matrices.tar.gz',
+            'data_path': 'filtered_matrices_mex/hg19/matrix.mtx',
+            'compressed': True
+        },
     },
 }
 
@@ -89,14 +93,17 @@ class PartialDataset() :
 
 
 class GenomeDataset():
-    def __init__(self, name, dataset_def):
-        self.name = name
+    def __init__(self, dataset_def):
+        self.name = dataset_def['name']
         self.definition = dataset_def
         self.partials = []
-        self.load_definition()
 
-    def load_definition(self):
-        for key, value in self.definition.items():
+        self.load_definitions()
+        self.dl_dataset()
+        self.load_dataset()
+
+    def load_definitions(self):
+        for key, value in self.definition['data'].items():
             self.partials.append(PartialDataset(key, value['url'], self.name + '/' + key, value['data_path'], compressed=value['compressed']))
 
     def dl_dataset(self):
@@ -107,8 +114,16 @@ class GenomeDataset():
 
     def load_dataset(self):
         print(f'Loading dataset {self.name}...')
-        self.labels = []
+
+        if self.definition['labels'] == 'from_dataset':
+            self.labels = []
+
         for i,partial in enumerate(self.partials):
             partial.load()
-            self.labels += [i] * len(partial)
+            if self.definition['labels'] == 'from_dataset':
+                self.labels += [i] * len(partial)
+
         self.data = vstack([partial.data for partial in self.partials])
+
+    def __len__(self) :
+        return self.data.shape[0]
