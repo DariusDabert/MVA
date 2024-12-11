@@ -15,21 +15,22 @@ from utils import sparse_mx_to_torch_sparse
 from models import VariationalAutoEncoder
 
 class Trainer():
-    def __init__(self, model, optimizer, device):
+    def __init__(self, X, idx, model, optimizer, device, seed = 42):
+        self.X = X
+        self.idx = idx
         self.model = model
         self.optimizer = optimizer
         self.device = device
+
     
-    def train(self, X, y, distribution, epochs, batch_size):
+    def train(self, distribution, epochs, batch_size):
         # Slit into training and validation sets
-        idx = np.random.permutation(len(X))
-        train_idx = [int(i) for i in idx[:int(0.81*idx.size)]]
-        val_idx = [int(i) for i in idx[int(0.81*idx.size):int(0.9*idx.size)]]
-        test_idx = [int(i) for i in idx[int(0.9*idx.size):]]
+
+        train_idx = [int(i) for i in self.idx[:int(0.81*self.idx.size)]]
+        val_idx = [int(i) for i in self.idx[int(0.81*self.idx.size):int(0.9*self.idx.size)]]
 
         n_train = len(train_idx)
         n_val = len(val_idx)
-        n_test = len(test_idx)
 
 
         # Train autoencoder
@@ -45,16 +46,11 @@ class Trainer():
 
             for i in tqdm(range(0, batch_size*10, batch_size)):
                 x_batch = list()
-                y_batch = list()
                 for j in range(i, min(n_train, i+batch_size)):
-                    x_batch.append(X[train_idx[j]])
-                    y_batch.append(y[train_idx[j]])
+                    x_batch.append(self.X[train_idx[j]])
                     train_count += 1
                 
                 x_batch = torch.stack(x_batch, dim=0)
-                y_batch = np.vstack(y_batch)
-
-                y_batch = torch.FloatTensor(y_batch).to(self.device)
                 
                 self.optimizer.zero_grad()
                 loss, recon, kld  = self.model.loss_function(x_batch, distribution)
@@ -72,23 +68,24 @@ class Trainer():
 
             for i in tqdm(range(0, 10 * batch_size, batch_size)):
                 x_batch = list()
-                y_batch = list()
+
                 for j in range(i, min(n_val, i+batch_size)):
-                    x_batch.append(X[val_idx[j]])
-                    y_batch.append(y[val_idx[j]])
+                    x_batch.append(self.X[val_idx[j]])
                     val_count += 1
                 
                 x_batch = torch.stack(x_batch, dim=0)
-                y_batch = np.vstack(y_batch)
-
-                y_batch = torch.FloatTensor(y_batch).to(self.device)
 
                 loss, recon, kld  = self.model.loss_function(x_batch, distribution)
                 val_loss_all_recon += recon.item()
                 val_loss_all_kld += kld.item()
                 val_loss_all += loss.item()
+            
+            if best_val_loss > val_loss_all:
+                best_val_loss = val_loss_all
+                torch.save(self.model.state_dict(), 'best_model.pth')
+                print('Model saved')
 
-            if epoch % 1 == 0:
+            if epoch % 5 == 0:
                 print('Epoch: {:04d}, Train Loss: {:.5f}, Train Reconstruction Loss: {:.2f}, Train KLD Loss: {:.2f}, Val Loss: {:.5f}, Val Reconstruction Loss: {:.2f}, Val KLD Loss: {:.2f}'.format(epoch, train_loss_all/train_count, train_loss_all_recon/train_count, train_loss_all_kld/train_count, val_loss_all/train_count, val_loss_all_recon/train_count, val_loss_all_kld/train_count))
                 
 

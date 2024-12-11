@@ -2,8 +2,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from torch_geometric.nn import global_add_pool
-
 
 # Decoder
 class Decoder(nn.Module):
@@ -31,9 +29,8 @@ class Decoder(nn.Module):
         self.relu = nn.ReLU()
     
     def forward(self, z):
-        z = self.fc[0](z)
 
-        for i in range(1, self.n_layers):
+        for i in range(self.n_layers):
             z = self.fc[i](z)
 
         lambda_ = self.fc_proj(z)
@@ -44,7 +41,7 @@ class Decoder(nn.Module):
 
 # Encoder
 class Encoder(nn.Module):
-    def __init__(self, input_dim, hidden_dims, n_layers):
+    def __init__(self, input_dim, hidden_dims, latent_dim, n_layers):
         super(Encoder, self).__init__()    
 
         self.mlps = torch.nn.ModuleList()
@@ -56,12 +53,11 @@ class Encoder(nn.Module):
             self.mlps.append(nn.Sequential(nn.Linear(hidden_dims[layer], hidden_dims[layer+1]),  
                             nn.ReLU(),
                             ))
-        self.relu = nn.ReLU()
+        self.mlps.append(nn.Linear(hidden_dims[n_layers-1], latent_dim))
 
     def forward(self, x):
 
-        x = self.mlps[0](x)
-        for i in range(1, len(self.mlps)):
+        for i in range(len(self.mlps)):
             x = self.mlps[i](x)
         
         return x
@@ -72,9 +68,9 @@ class VariationalAutoEncoder(nn.Module):
     def __init__(self, input_dim, hidden_dim_enc, hidden_dim_dec, latent_dim, n_layers_enc, n_layers_dec):
         super(VariationalAutoEncoder, self).__init__()
         self.input_dim = input_dim
-        self.encoder = Encoder(input_dim, hidden_dim_enc, n_layers_enc)
-        self.fc_mu = nn.Linear(hidden_dim_enc[-1], latent_dim)
-        self.fc_logvar = nn.Linear(hidden_dim_enc[-1], latent_dim)
+        self.encoder = Encoder(input_dim, hidden_dim_enc, latent_dim, n_layers_enc)
+        self.fc_mu = nn.Linear(latent_dim, latent_dim)
+        self.fc_logvar = nn.Linear(latent_dim, latent_dim)
         self.decoder = Decoder(latent_dim, hidden_dim_dec, input_dim, n_layers_dec) 
 
     def reparameterize(self, mu, logvar, eps_scale=1.):
@@ -115,21 +111,21 @@ class VariationalAutoEncoder(nn.Module):
 # Variational Autoencoder
 class GMVariationalAutoEncoder(nn.Module):
     def __init__(self, input_dim, hidden_dim_enc, hidden_dim_dec, latent_dim, n_layers_enc, n_layers_dec, nb_classes):
-        super(VariationalAutoEncoder, self).__init__()
+        super(GMVariationalAutoEncoder, self).__init__()
         self.input_dim = input_dim
         self.nb_classes = nb_classes
-        self.encoder = Encoder(input_dim, hidden_dim_enc, n_layers_enc)
+        self.encoder = Encoder(input_dim, hidden_dim_enc, latent_dim, n_layers_enc)
 
-        self.fc_pi = nn.Sequential([nn.Linear(hidden_dim_enc[-1], nb_classes),
-                                      nn.Softmax()])
+        self.fc_pi = nn.Sequential(nn.Linear(latent_dim, nb_classes),
+                                      nn.Softmax())
         
         self.fc_mus = torch.nn.ModuleList()
         for i in range(nb_classes):
-            self.fc_mus.append(nn.Linear(hidden_dim_enc[-1], latent_dim))
+            self.fc_mus.append(nn.Linear(latent_dim,latent_dim))
         self.fc_logvars = torch.nn.ModuleList()
         for i in range(nb_classes):
-            self.fc_logvars.append(nn.Sequential([nn.Linear(hidden_dim_enc[-1], latent_dim),
-                                        nn.ReLU()]))
+            self.fc_logvars.append(nn.Sequential(nn.Linear(latent_dim, latent_dim),
+                                        nn.ReLU()))
             
         self.decoder = Decoder(latent_dim, hidden_dim_dec, input_dim, n_layers_dec) 
 
@@ -165,9 +161,10 @@ class GMVariationalAutoEncoder(nn.Module):
             z = self.reparameterize(mu, logvar)
 
             lambda_ = self.decoder(z)
-            recon -= pi[i] * ( distribution(lambda_).log_prob(x).sum())
-            kld -= pi[i] * ( 0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp()))
-            kld_pi -= pi[i] * torch.log(self. nb_classes * pi[i] )
+            recon -= ((pi[:,i] @ distribution(lambda_).log_prob(x)).sum())
+            kld -=  ( 0.5 * torch.sum(pi[:,i] @ (1 + logvar - mu.pow(2) - logvar.exp())))
+            kld_pi -= (pi[:,i] * torch.log(self. nb_classes * pi[:,i])).sum()
+
         loss = recon + kld + kld_pi
 
-        return loss, recon, kld, kld_pi
+        return loss, recon, kld + kld_pi
