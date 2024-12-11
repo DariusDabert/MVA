@@ -93,13 +93,16 @@ class PartialDataset() :
 
 
 class GenomeDataset():
-    def __init__(self, dataset_def):
+    def __init__(self, dataset_def, download=True):
         self.name = dataset_def['name']
         self.definition = dataset_def
         self.partials = []
 
         self.load_definitions()
-        self.dl_dataset()
+
+        if download == True:
+            self.dl_dataset()
+
         self.load_dataset()
 
     def load_definitions(self):
@@ -115,15 +118,18 @@ class GenomeDataset():
     def load_dataset(self):
         print(f'Loading dataset {self.name}...')
 
-        if self.definition['labels'] == 'from_dataset':
-            self.labels = []
-
-        for i,partial in enumerate(self.partials):
-            partial.load()
+        try:
             if self.definition['labels'] == 'from_dataset':
-                self.labels += [i] * len(partial)
+                self.labels = []
 
-        self.data = vstack([partial.data for partial in self.partials])
+            for i,partial in enumerate(self.partials):
+                partial.load()
+                if self.definition['labels'] == 'from_dataset':
+                    self.labels += [i] * len(partial)
+
+            self.data = vstack([partial.data for partial in self.partials])
+        except:
+            print(f'Error, dataset {self.name} could not be loaded, please check the dataset definition and download state')
 
     def __len__(self) :
         return self.data.shape[0]
