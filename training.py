@@ -44,7 +44,7 @@ class Trainer():
 
             shuffle(train_idx)
 
-            for i in tqdm(range(0, batch_size*10, batch_size)):
+            for i in tqdm(range(0, n_train, batch_size)):
                 x_batch = list()
                 for j in range(i, min(n_train, i+batch_size)):
                     x_batch.append(self.X[train_idx[j]])
@@ -66,7 +66,7 @@ class Trainer():
             val_loss_all_recon = 0
             val_loss_all_kld = 0
 
-            for i in tqdm(range(0, 10 * batch_size, batch_size)):
+            for i in tqdm(range(0, n_val, batch_size)):
                 x_batch = list()
 
                 for j in range(i, min(n_val, i+batch_size)):

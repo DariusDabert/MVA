@@ -1,8 +1,9 @@
 import requests
 import os
-from scipy.sparse import vstack
+from scipy.sparse import vstack, coo_matrix
 import tarfile
 from scipy.io import mmread
+import numpy as np
 
 pbmc_definition = {
     'name': 'PBMC',
@@ -56,14 +57,39 @@ pbmc_definition = {
     },
 }
 
+def coo_submatrix_pull(matr, rows, cols):
+    """
+    Pulls out an arbitrary i.e. non-contiguous submatrix out of
+    a sparse.coo_matrix. 
+    """
+    if type(matr) != coo_matrix:
+        raise TypeError('Matrix must be sparse COOrdinate format')
+    
+    gr = -1 * np.ones(matr.shape[0])
+    gc = -1 * np.ones(matr.shape[1])
+    
+    lr = len(rows)
+    lc = len(cols)
+    
+    ar = np.arange(0, lr)
+    ac = np.arange(0, lc)
+    gr[rows[ar]] = ar
+    gc[cols[ac]] = ac
+    mrow = matr.row
+    mcol = matr.col
+    newelem = (gr[mrow] > -1) & (gc[mcol] > -1)
+    newrows = mrow[newelem]
+    newcols = mcol[newelem]
+    return coo_matrix((matr.data[newelem], np.array([gr[newrows], gc[newcols]])),(lr, lc))
 
 class PartialDataset() :
-    def __init__(self, name, url, path, data_path, compressed=True):
+    def __init__(self, name, url, path, data_path, compressed=True, small=False):
         self.name = name
         self.url = url
         self.path = path
         self.data_path = data_path
         self.compressed = compressed
+        self.small = small
 
     def download(self):
         if os.path.exists(self.path):
@@ -87,15 +113,19 @@ class PartialDataset() :
 
     def load(self):
         self.data = mmread(self.path + '/' + self.data_path).transpose()
+        l,c = self.data.shape[0], self.data.shape[1]
+        if self.small:
+            self.data = coo_submatrix_pull(self.data, np.arange(0, int(l*0.1)), np.arange(0, c))
 
     def __len__(self):
         return self.data.shape[0]
 
 
 class GenomeDataset():
-    def __init__(self, dataset_def, download=True):
+    def __init__(self, dataset_def, download=True, small=False):
         self.name = dataset_def['name']
         self.definition = dataset_def
+        self.small = small
         self.partials = []
 
         self.load_definitions()
@@ -107,7 +137,7 @@ class GenomeDataset():
 
     def load_definitions(self):
         for key, value in self.definition['data'].items():
-            self.partials.append(PartialDataset(key, value['url'], self.name + '/' + key, value['data_path'], compressed=value['compressed']))
+            self.partials.append(PartialDataset(key, value['url'], self.name + '/' + key, value['data_path'], compressed=value['compressed'], small=self.small))
 
     def dl_dataset(self):
         print(f'Downloading dataset {self.name}...')
