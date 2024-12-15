@@ -81,12 +81,6 @@ class VariationalAutoEncoder(nn.Module):
         else:
             return mu
 
-    def decode(self, mu):
-        out = self.decoder(mu)
-        out = torch.sigmoid(out)
-        out = out * (1 - torch.eye(out.size(-2), out.size(-1), device=out.device))
-        return out
-
     def loss_function(self, x, distribution):
         x = x.to_dense()
         x_latent = self.encoder(x)
@@ -117,7 +111,7 @@ class GMVariationalAutoEncoder(nn.Module):
         self.encoder = Encoder(input_dim, hidden_dim_enc, latent_dim, n_layers_enc)
 
         self.fc_pi = nn.Sequential(nn.Linear(latent_dim, nb_classes),
-                                      nn.Softmax())
+                                      nn.Softmax(dim=1))
         
         self.fc_mus = torch.nn.ModuleList()
         for i in range(nb_classes):
@@ -136,12 +130,6 @@ class GMVariationalAutoEncoder(nn.Module):
             return eps.mul(std).add_(mu)
         else:
             return mu
-
-    def decode(self, mu):
-        out = self.decoder(mu)
-        out = torch.sigmoid(out)
-        out = out * (1 - torch.eye(out.size(-2), out.size(-1), device=out.device))
-        return out
 
     def loss_function(self, x, distribution):
         x = x.to_dense()

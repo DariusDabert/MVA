@@ -1,7 +1,4 @@
 import numpy as np
-import networkx as nx
-import scipy.sparse as sp
-import matplotlib.pyplot as plt
 import torch
 
 def sparse_mx_to_torch_sparse(M):
