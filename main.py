@@ -24,9 +24,8 @@ def main():
     parser.add_argument('--seed', type=int, help="Seed", default=42)
     parser.add_argument('--likelihood_distrib', type=str, help="Distrubtion prior used for the loss function", default="Poisson")
     parser.add_argument('--optimizer', type=str, help="Optimizer used for training", default="Adam")
+    parser.add_argument('--training', type=bool, help="If you want to train the model", default=True)
 
-    
-    # Parse the arguments
     args = parser.parse_args()
 
     np.random.seed(args.seed)
@@ -61,41 +60,42 @@ def main():
 
     model_name = args.model_name
     if model_name == "VariationalAutoEncoder":
-        # Initialize autoencoder
         autoencoder = VariationalAutoEncoder(input_feats, hidden_dim_encoder, hidden_dim_decoder, latent_dim, n_layers_encoder, n_layers_decoder).to(device)
     elif model_name == "GMVariationalAutoEncoder":
-        # Initialize autoencoder
         autoencoder = GMVariationalAutoEncoder(input_feats, hidden_dim_encoder, hidden_dim_decoder, latent_dim, n_layers_encoder, n_layers_decoder, nb_classes).to(device)
     elif model_name == "GMVariationalAutoEncoder_transformers":
         autoencoder = GMVariationalAutoEncoder_transformers(input_feats, hidden_dim_encoder, hidden_dim_decoder, latent_dim, n_layers_encoder, n_layers_decoder, nb_classes).to(device)
 
-    optimizer_name = args.optimizer
-    if optimizer_name == "Adam":
-        optimizer = torch.optim.Adam(autoencoder.parameters(), lr=args.lr)
-    elif optimizer_name == "AdamW":
-        optimizer = torch.optim.AdamW(autoencoder.parameters(), lr=args.lr)
-    elif optimizer_name == "SGD":
-        optimizer = torch.optim.SGD(autoencoder.parameters(), lr=args.lr)
+    if args.training:
+        optimizer_name = args.optimizer
+        if optimizer_name == "Adam":
+            optimizer = torch.optim.Adam(autoencoder.parameters(), lr=args.lr)
+        elif optimizer_name == "AdamW":
+            optimizer = torch.optim.AdamW(autoencoder.parameters(), lr=args.lr)
+        elif optimizer_name == "SGD":
+            optimizer = torch.optim.SGD(autoencoder.parameters(), lr=args.lr)
 
 
-    distribution_name = args.likelihood_distrib
-    if distribution_name == "Poisson":
-        distribution = torch.distributions.Poisson 
-    if distribution_name == "NegativeBinomial":
-        distribution = torch.distributions.NegativeBinomial
-    if distribution_name == "ZeroInflatedPoisson":
-        distribution = torch.distributions.ZeroInflatedPoisson
-    if distribution_name == "ZeroInflatedNegativeBinomial":
-        distribution = torch.distributions.ZeroInflatedNegativeBinomial
+        distribution_name = args.likelihood_distrib
+        if distribution_name == "Poisson":
+            distribution = torch.distributions.Poisson 
+        elif distribution_name == "NegativeBinomial":
+            distribution = torch.distributions.NegativeBinomial
+        elif distribution_name == "ZeroInflatedPoisson":
+            distribution = torch.distributions.ZeroInflatedPoisson
+        elif distribution_name == "ZeroInflatedNegativeBinomial":
+            distribution = torch.distributions.ZeroInflatedNegativeBinomial
 
-    idx = np.random.default_rng(seed=args.seed).permutation(len(X_torch))
+        idx = np.random.default_rng(seed=args.seed).permutation(len(X_torch))
 
-    trainer = Trainer(X_torch, idx, autoencoder, optimizer, device)
+        trainer = Trainer(X_torch, idx, autoencoder, optimizer, device)
 
-    trainer.train(distribution, epochs, batch_size)
+        trainer.train(distribution, epochs, batch_size)
 
-    # Save model
-    torch.save(autoencoder.state_dict(), f'{args.model_name}.pth')
+        # Save model
+        torch.save(autoencoder.state_dict(), f'{args.model_name}.pth')
+    
+    # ADD the script to evaluate the model
 
 if __name__ == "__main__":
     main()
