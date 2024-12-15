@@ -22,7 +22,7 @@ def main():
     parser.add_argument('--nb_classes', type=int, help="Number of classes", default=9)
     parser.add_argument('--batch_size', type=int, help="Batch size", default=100)
     parser.add_argument('--seed', type=int, help="Seed", default=42)
-    parser.add_argument('--likelihood_distrib', type=str, help="Distrubtion prior used for the loss function", default="Poisson")
+    parser.add_argument('--likelihood-distrib', type=str, help="Distrubtion prior used for the loss function", default="Poisson")
     parser.add_argument('--optimizer', type=str, help="Optimizer used for training", default="Adam")
     parser.add_argument('--training', type=bool, help="If you want to train the model", default=True)
     parser.add_argument('--small', type=bool, help="If you want to train the model with small dataset", default=False)
