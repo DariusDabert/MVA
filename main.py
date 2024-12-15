@@ -25,6 +25,7 @@ def main():
     parser.add_argument('--likelihood_distrib', type=str, help="Distrubtion prior used for the loss function", default="Poisson")
     parser.add_argument('--optimizer', type=str, help="Optimizer used for training", default="Adam")
     parser.add_argument('--training', type=bool, help="If you want to train the model", default=True)
+    parser.add_argument('--small', type=bool, help="If you want to train the model with small dataset", default=False)
 
     args = parser.parse_args()
 
@@ -39,12 +40,12 @@ def main():
     dataset_name = args.dataset
     if dataset_name == "pbmc":
         # Load dataset
-        G = GenomeDataset(pbmc_definition, download=True, small=True)
+        G = GenomeDataset(pbmc_definition, download=True, small=args.small)
         X = G.data
         y = G.labels
     if dataset_name == "brain_large":
         # Load dataset
-        G = GenomeDataset(pbmc_definition, download=True, small=True)
+        G = GenomeDataset(pbmc_definition, download=True, small=args.small)
         X = G.data
         y = G.labels
 
