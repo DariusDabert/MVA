@@ -33,8 +33,6 @@ class Decoder(nn.Module):
             z = self.fc[i](z)
 
         lambda_ = self.fc_proj(z)
-
-        lambda_ = torch.sigmoid(lambda_)
         
         return lambda_
 
@@ -61,7 +59,6 @@ class Encoder(nn.Module):
         
         return x
 
-
 # Variational Autoencoder
 class VariationalAutoEncoder(nn.Module):
     def __init__(self, input_dim, hidden_dim_enc, hidden_dim_dec, latent_dim, n_layers_enc, n_layers_dec):
@@ -71,6 +68,8 @@ class VariationalAutoEncoder(nn.Module):
         self.fc_mu = nn.Linear(latent_dim, latent_dim)
         self.fc_logvar = nn.Linear(latent_dim, latent_dim)
         self.decoder = Decoder(latent_dim, hidden_dim_dec, input_dim, n_layers_dec) 
+        self.softplus = nn.Softplus()
+        self.sigmoid = nn.Sigmoid()
 
     def reparameterize(self, mu, logvar, eps_scale=1.):
         if self.training:
@@ -80,7 +79,7 @@ class VariationalAutoEncoder(nn.Module):
         else:
             return mu
 
-    def loss_function(self, x, distribution):
+    def loss_function(self, x, distribution, total_count=None):
         x = x.to_dense()
         x_latent = self.encoder(x)
     
@@ -90,9 +89,14 @@ class VariationalAutoEncoder(nn.Module):
         z = self.reparameterize(mu, logvar)
 
         lambda_ = self.decoder(z)
+
+        if distribution == torch.distributions.Poisson:
+            lambda_ = self.softplus(lambda_)
+            recon = - distribution(lambda_).log_prob(x).sum()
+        if distribution == torch.distributions.NegativeBinomial:
+            lambda_ = self.sigmoid(lambda_)
+            recon = - distribution(total_count= total_count, probs=lambda_).log_prob(x).sum()
         
-        # reconstruction loss from a poisson law (To modify)
-        recon = - distribution(lambda_).log_prob(x).sum()
         kld = - 0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
         loss = recon + kld
 
@@ -118,6 +122,8 @@ class GMVariationalAutoEncoder(nn.Module):
                                         nn.ReLU()))
             
         self.decoder = Decoder(latent_dim, hidden_dim_dec, input_dim, n_layers_dec) 
+        self.softplus = nn.Softplus()
+        self.sigmoid = nn.Sigmoid()
 
     def reparameterize(self, mu, logvar, eps_scale=1.):
         if self.training:
@@ -127,7 +133,7 @@ class GMVariationalAutoEncoder(nn.Module):
         else:
             return mu
 
-    def loss_function(self, x, distribution):
+    def loss_function(self, x, distribution, total_count=None):
         x = x.to_dense()
         x_latent = self.encoder(x)
 
@@ -145,7 +151,13 @@ class GMVariationalAutoEncoder(nn.Module):
             z = self.reparameterize(mu, logvar)
 
             lambda_ = self.decoder(z)
-            recon -= ((pi[:,i] @ distribution(lambda_).log_prob(x)).sum())
+            
+            if distribution == torch.distributions.Poisson:
+                lambda_ = self.softplus(lambda_)
+                recon -= ((pi[:,i] @ distribution(lambda_).log_prob(x)).sum())
+            if distribution == torch.distributions.NegativeBinomial:
+                lambda_ = self.sigmoid(lambda_)
+                recon -= ((pi[:,i] @ distribution(total_count = total_count, probs=lambda_).log_prob(x)).sum())
             kld -=  ( 0.5 * torch.sum(pi[:,i] @ (1 + logvar - mu.pow(2) - logvar.exp())))
             kld_pi -= (pi[:,i] * torch.log(self. nb_classes * pi[:,i])).sum()
 
@@ -179,8 +191,6 @@ class Decoder_transformers(nn.Module):
 
         z = z.squeeze(0)
         lambda_ = self.fc_proj(z)
-
-        lambda_ = torch.sigmoid(lambda_)
         
         return lambda_
     
@@ -231,6 +241,8 @@ class GMVariationalAutoEncoder_transformers(nn.Module):
                                         nn.ReLU()))
             
         self.decoder = Decoder_transformers(latent_dim, hidden_dim_dec, input_dim, 8, n_layers_dec) 
+        self.softplus = nn.Softplus()
+        self.sigmoid = nn.Sigmoid()
 
     def reparameterize(self, mu, logvar, eps_scale=1.):
         if self.training:
@@ -240,7 +252,7 @@ class GMVariationalAutoEncoder_transformers(nn.Module):
         else:
             return mu
 
-    def loss_function(self, x, distribution):
+    def loss_function(self, x, distribution, total_count=None):
         x = x.to_dense()
         x_latent = self.encoder(x)
 
@@ -258,7 +270,14 @@ class GMVariationalAutoEncoder_transformers(nn.Module):
             z = self.reparameterize(mu, logvar)
 
             lambda_ = self.decoder(z)
-            recon -= ((pi[:,i] @ distribution(lambda_).log_prob(x)).sum())
+
+            if distribution == torch.distributions.Poisson:
+                lambda_ = self.softplus(lambda_)
+                recon -= ((pi[:,i] @ distribution(lambda_).log_prob(x)).sum())
+            if distribution == torch.distributions.NegativeBinomial:
+                lambda_ = self.sigmoid(lambda_)
+                recon -= ((pi[:,i] @ distribution(total_count=total_count, probs=lambda_).log_prob(x)).sum())
+            
             kld -=  ( 0.5 * torch.sum(pi[:,i] @ (1 + logvar - mu.pow(2) - logvar.exp())))
             kld_pi -= (pi[:,i] * torch.log(self. nb_classes * pi[:,i])).sum()
 

@@ -48,6 +48,7 @@ def main():
         G = GenomeDataset(pbmc_definition, download=True, small=args.small)
         X = G.data
         y = G.labels
+    total_count = X.max()
 
     X_torch = sparse_mx_to_torch_sparse(X).to(device)
 
@@ -82,16 +83,12 @@ def main():
             distribution = torch.distributions.Poisson 
         elif distribution_name == "NegativeBinomial":
             distribution = torch.distributions.NegativeBinomial
-        elif distribution_name == "ZeroInflatedPoisson":
-            distribution = torch.distributions.ZeroInflatedPoisson
-        elif distribution_name == "ZeroInflatedNegativeBinomial":
-            distribution = torch.distributions.ZeroInflatedNegativeBinomial
 
         idx = np.random.default_rng(seed=args.seed).permutation(len(X_torch))
 
         trainer = Trainer(X_torch, idx, autoencoder, optimizer, device)
 
-        trainer.train(distribution, epochs, batch_size)
+        trainer.train(distribution, epochs, batch_size, total_count)
 
         # Save model
         torch.save(autoencoder.state_dict(), f'{args.model_name}.pth')

@@ -19,7 +19,7 @@ class Trainer():
         self.device = device
 
     
-    def train(self, distribution, epochs, batch_size):
+    def train(self, distribution, epochs, batch_size, total_count):
         # Slit into training and validation sets
 
         train_idx = [int(i) for i in self.idx[:int(0.81*self.idx.size)]]
@@ -49,7 +49,7 @@ class Trainer():
                 x_batch = torch.stack(x_batch, dim=0)
                 
                 self.optimizer.zero_grad()
-                loss, recon, kld  = self.model.loss_function(x_batch, distribution)
+                loss, recon, kld  = self.model.loss_function(x_batch, distribution, total_count)
                 train_loss_all_recon += recon.item()
                 train_loss_all_kld += kld.item()
                 loss.backward()
@@ -71,7 +71,7 @@ class Trainer():
                 
                 x_batch = torch.stack(x_batch, dim=0)
 
-                loss, recon, kld  = self.model.loss_function(x_batch, distribution)
+                loss, recon, kld  = self.model.loss_function(x_batch, distribution, total_count)
                 val_loss_all_recon += recon.item()
                 val_loss_all_kld += kld.item()
                 val_loss_all += loss.item()
