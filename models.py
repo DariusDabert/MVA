@@ -5,26 +5,25 @@ import torch.nn.functional as F
 
 # Decoder
 class Decoder(nn.Module):
-    def __init__(self, latent_dim, hidden_dims, output_dim, n_layers, dropout=0.2):
+    def __init__(self, latent_dim, hidden_dim, output_dim, n_layers, dropout=0.2):
         super(Decoder, self).__init__()
         self.n_layers = n_layers
 
         self.fc = nn.ModuleList()
-        self.fc.append(nn.Sequential(nn.Linear(latent_dim, hidden_dims[0]),  
+        self.fc.append(nn.Sequential(nn.Linear(latent_dim, hidden_dim),  
                             nn.ReLU(),
-                            nn.LayerNorm(hidden_dims[0]), 
+                            nn.LayerNorm(hidden_dim), 
                             nn.Dropout(dropout)
                             ))
 
         for i in range(1, n_layers):
-            self.fc.append(nn.Sequential(nn.Linear(hidden_dims[i-1], hidden_dims[i]),  
+            self.fc.append(nn.Sequential(nn.Linear(hidden_dim, hidden_dim),  
                             nn.ReLU(),
-                            nn.LayerNorm(hidden_dims[i]), 
+                            nn.LayerNorm(hidden_dim), 
                             nn.Dropout(dropout)
                             ))
             
-        
-        self.fc_proj = nn.Linear(hidden_dims[n_layers-1], output_dim)
+        self.fc_proj = nn.Linear(hidden_dim, output_dim)
         self.dropout = nn.Dropout(dropout)
         self.relu = nn.ReLU()
     
@@ -41,19 +40,19 @@ class Decoder(nn.Module):
 
 # Encoder
 class Encoder(nn.Module):
-    def __init__(self, input_dim, hidden_dims, latent_dim, n_layers):
+    def __init__(self, input_dim, hidden_dim, latent_dim, n_layers):
         super(Encoder, self).__init__()    
 
         self.mlps = torch.nn.ModuleList()
-        self.mlps.append(nn.Sequential(nn.Linear(input_dim, hidden_dims[0]),  
+        self.mlps.append(nn.Sequential(nn.Linear(input_dim, hidden_dim),  
                             nn.ReLU(),
                             ))
 
         for layer in range(n_layers-1):
-            self.mlps.append(nn.Sequential(nn.Linear(hidden_dims[layer], hidden_dims[layer+1]),  
+            self.mlps.append(nn.Sequential(nn.Linear(hidden_dim, hidden_dim),  
                             nn.ReLU(),
                             ))
-        self.mlps.append(nn.Linear(hidden_dims[n_layers-1], latent_dim))
+        self.mlps.append(nn.Linear(hidden_dim, latent_dim))
 
     def forward(self, x):
 
