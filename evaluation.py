@@ -49,16 +49,17 @@ class Evaluator():
         ]
 
         colors = [
-            "#81f79f",
-            "#2e9afe",
-            "#3bb9ff",
-            "#ff00ff",
-            "#00ffff",
-            "#ffd700",
-            "#ff7f50",
-            "#0000ff",
-            "#ff0000"
+            "#ff0000",  # Bright Red
+            "#00ff00",  # Bright Green
+            "#0000ff",  # Bright Blue
+            "#ffff00",  # Yellow
+            "#ff00ff",  # Magenta
+            "#00ffff",  # Cyan
+            "#800000",  # Maroon
+            "#808000",  # Olive
+            "#000000"   # Black
         ]
+
 
         plt.figure(figsize=(10, 8))
         for i, ctype in enumerate(cell_types):
