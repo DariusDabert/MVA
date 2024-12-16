@@ -6,6 +6,7 @@ import tarfile
 from scipy.io import mmread
 import numpy as np
 import csv
+import h5py
 
 
 def coo_submatrix_pull(matr, rows, cols):
@@ -70,6 +71,15 @@ def cortex_loader(path_to_data, small) :
     # gene_names = gene_names[gene_indices]
     return torch.Tensor(data), torch.Tensor(labels)
 
+def retina_loader(path_to_data, small):
+    f = h5py.File(path_to_data, 'r')
+    m = np.array(f['matrix'])
+    data = torch.Tensor(m).transpose(0, 1)
+    l = np.array(f['col_attrs']['ClusterID'])
+    labels = torch.Tensor(l)
+    f.close()
+    return data, labels
+
 
 pbmc_definition = {
     'name': 'PBMC',
@@ -131,6 +141,19 @@ cortex_definition = {
     'data' : {
         'cortex': {
             'url': 'https://storage.googleapis.com/linnarsson-lab-www-blobs/blobs/cortex/expression_mRNA_17-Aug-2014.txt',
+            'data_path': 'data',
+            'compressed': False
+        }
+    },
+}
+
+retina_definition = {
+    'name': 'Retina',
+    'labels': 'loaded',
+    'loader': retina_loader,
+    'data' : {
+        'retina': {
+            'url': 'https://github.com/YosefLab/scVI-data/raw/master/retina.loom',
             'data_path': 'data',
             'compressed': False
         }
