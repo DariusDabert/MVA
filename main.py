@@ -3,7 +3,7 @@ import argparse
 import numpy as np
 import torch
 
-from dataset import GenomeDataset, pbmc_definition
+from dataset import GenomeDataset, pbmc_definition, cortex_definition, retina_definition
 from utils import sparse_mx_to_torch_sparse
 from models import VariationalAutoEncoder, GMVariationalAutoEncoder, GMVariationalAutoEncoder_transformers
 from training import Trainer
@@ -44,16 +44,22 @@ def main():
 
     dataset_name = args.dataset
     if dataset_name == "pbmc":
-        # Load dataset
         G = GenomeDataset(pbmc_definition, download=True, small=args.small)
-    if dataset_name == "brain_large":
-        # Load dataset
-        G = GenomeDataset(pbmc_definition, download=True, small=args.small)
+    elif dataset_name == "retina":
+        G = GenomeDataset(retina_definition, download=True, small=args.small)
+    elif dataset_name == "cortex":
+        G = GenomeDataset(cortex_definition, download=True, small=args.small)
+    else:
+        raise ValueError("Unknown dataset")
+
     X = G.data
     y = G.labels
     total_count = X.max()
 
-    X_torch = sparse_mx_to_torch_sparse(X).to(device)
+    if type(X) != torch.Tensor:
+        X_torch = sparse_mx_to_torch_sparse(X).to(device)
+    else:
+        X_torch = X.to(device)
 
     n_layers_encoder = args.n_layers
     latent_dim = args.latent_dim
@@ -70,6 +76,8 @@ def main():
         autoencoder = GMVariationalAutoEncoder(input_feats, hidden_dim_encoder, hidden_dim_decoder, latent_dim, n_layers_encoder, n_layers_decoder, nb_classes).to(device)
     elif model_name == "GMVariationalAutoEncoder_transformers":
         autoencoder = GMVariationalAutoEncoder_transformers(input_feats, hidden_dim_encoder, hidden_dim_decoder, latent_dim, n_layers_encoder, n_layers_decoder, nb_classes).to(device)
+    else:
+        raise ValueError("Unknown model")
 
     idx = np.random.default_rng(seed=args.seed).permutation(len(X_torch))
 
@@ -81,6 +89,8 @@ def main():
             optimizer = torch.optim.AdamW(autoencoder.parameters(), lr=args.lr)
         elif optimizer_name == "SGD":
             optimizer = torch.optim.SGD(autoencoder.parameters(), lr=args.lr)
+        else:
+            raise ValueError("Unknown optimizer")
 
 
         distribution_name = args.likelihood_distrib
@@ -88,6 +98,8 @@ def main():
             distribution = torch.distributions.Poisson 
         elif distribution_name == "NegativeBinomial":
             distribution = torch.distributions.NegativeBinomial
+        else:
+            raise ValueError("Unknown distribution")
 
         trainer = Trainer(X_torch, idx, autoencoder, optimizer, model_name, device)
 

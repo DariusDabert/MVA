@@ -43,12 +43,16 @@ class Trainer():
             shuffle(train_idx)
 
             for i in tqdm(range(0, n_train, batch_size)):
-                x_batch = list()
-                for j in range(i, min(n_train, i+batch_size)):
-                    x_batch.append(self.X[train_idx[j]])
-                    train_count += 1
-                
-                x_batch = torch.stack(x_batch, dim=0)
+                if self.X.is_sparse:
+                    x_batch = list()
+                    for j in range(i, min(n_train, i+batch_size)):
+                        x_batch.append(self.X[train_idx[j]])
+                        train_count += 1
+                    
+                    x_batch = torch.stack(x_batch, dim=0)
+                else:
+                    x_batch = self.X[train_idx[i:min(n_train, i+batch_size)]]
+                    train_count += x_batch.size(0)
                 
                 self.optimizer.zero_grad()
                 loss, recon, kld  = self.model.loss_function(x_batch, distribution, 1, total_count)
@@ -65,13 +69,16 @@ class Trainer():
             val_loss_all_kld = 0
 
             for i in tqdm(range(0, n_val, batch_size)):
-                x_batch = list()
-
-                for j in range(i, min(n_val, i+batch_size)):
-                    x_batch.append(self.X[val_idx[j]])
-                    val_count += 1
-                
-                x_batch = torch.stack(x_batch, dim=0)
+                if self.X.is_sparse:
+                    x_batch = list()
+                    for j in range(i, min(n_val, i+batch_size)):
+                        x_batch.append(self.X[val_idx[j]])
+                        val_count += 1
+                    
+                    x_batch = torch.stack(x_batch, dim=0)
+                else:
+                    x_batch = self.X[val_idx[i:min(n_val, i+batch_size)]]
+                    val_count += x_batch.size(0)
 
                 loss, recon, kld  = self.model.loss_function(x_batch, distribution,1, total_count)
                 val_loss_all_recon += recon.item()
