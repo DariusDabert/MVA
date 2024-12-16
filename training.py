@@ -32,7 +32,7 @@ class Trainer():
 
         # Train autoencoder
         best_val_loss = np.inf
-        betas = np.linspace(15, 1, epochs)
+        betas = np.arange(10, 0, -9/epochs)
         for epoch in range(1, epochs+1):
             self.model.train()
             train_loss_all = 0
