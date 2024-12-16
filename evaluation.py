@@ -91,6 +91,6 @@ class Evaluator():
         plt.close()
         print("Plot saved as latent_tsne_plot.png")
 
-        rand_index = adjusted_rand_score(y_test, clusters)
+        rand_index = adjusted_rand_score(y_test, clusters.cpu().numpy())
 
         print(f"Adjusted Rand Index: {rand_index}")
