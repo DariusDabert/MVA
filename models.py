@@ -168,7 +168,7 @@ class GMVariationalAutoEncoder(nn.Module):
 
         loss = recon + beta*(kld + kld_pi)
 
-        return loss, recon, kld + kld_pi
+        return loss, recon, kld + 1000*kld_pi
     
 
 # Decoder with Transformers
@@ -297,6 +297,6 @@ class GMVariationalAutoEncoder_transformers(nn.Module):
             kld +=  (0.5 * torch.sum(pi[:,i] @ (self.logvars[i] - logvar + (logvar.exp() / self.logvars[i].exp())  + (mu - self.mus[i]).pow(2) / self.logvars[i].exp() - 1)))
             kld_pi += (pi[:,i] * torch.log(pi[:,i] * self.nb_classes)).sum()
 
-        loss = recon + beta*(kld + kld_pi)
+        loss = recon + beta*(kld + 1000*kld_pi)
 
-        return loss, recon, kld + kld_pi
+        return loss, recon, kld + 1000*kld_pi
