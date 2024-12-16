@@ -51,7 +51,7 @@ class Evaluator():
         colors = [
             "#81f79f",
             "#2e9afe",
-            "#fa8072",
+            "#ff0040",
             "#ff00ff",
             "#00ffff",
             "#ffd700",
