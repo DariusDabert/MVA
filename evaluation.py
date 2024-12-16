@@ -39,10 +39,11 @@ class Evaluator():
 
             if hasattr(self.model, 'fc_pi'):
                 pi = self.model.fc_pi(x_latent)
-                clusters= torch.argmax(pi, dim=1)
+                clusters = torch.argmax(pi, dim=1)
                 latent = np.zeros((x_latent.size(0), x_latent.size(1)))
                 for i in range(x_latent.size(0)):
                     latent[i] = self.model.fc_mus[clusters[i]](x_latent[i]).cpu().numpy()
+                clusters = clusters.cpu().numpy()
             else:
                 latent = x_latent.cpu().numpy()
                 kmeans = KMeans(n_clusters=self.nb_classes, random_state=42).fit(latent)
@@ -91,6 +92,6 @@ class Evaluator():
         plt.close()
         print("Plot saved as latent_tsne_plot.png")
 
-        rand_index = adjusted_rand_score(y_test, clusters.cpu().numpy())
+        rand_index = adjusted_rand_score(y_test, clusters)
 
         print(f"Adjusted Rand Index: {rand_index}")

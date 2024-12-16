@@ -99,8 +99,6 @@ def main():
     if args.evaluate:
         evaluator = Evaluator(X_torch, idx, autoencoder, device, y, args.model_path)
         evaluator.evaluate_tSNE()
-        evaluator.evaluate_randindex()
-
 
 if __name__ == "__main__":
     main()
