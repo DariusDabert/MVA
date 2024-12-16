@@ -159,7 +159,6 @@ class GMVariationalAutoEncoder(nn.Module):
                 recon -= ((pi[:,i] @ distribution(lambda_).log_prob(x)).sum())
             if distribution == torch.distributions.NegativeBinomial:
                 lambda_ = self.sigmoid(lambda_)
-                #bewtwen eps and 1 - eps
                 lambda_ = torch.clamp(lambda_, self.eps, 1 - self.eps)
                 recon -= ((pi[:,i] @ distribution(total_count = total_count, probs=lambda_).log_prob(x)).sum())
             kld -=  ( 0.5 * torch.sum(pi[:,i] @ (1 + logvar - mu.pow(2) - logvar.exp())))
