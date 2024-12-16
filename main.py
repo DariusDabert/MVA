@@ -91,7 +91,7 @@ def main():
 
         trainer = Trainer(X_torch, idx, autoencoder, optimizer, device)
 
-        trainer.train(distribution, epochs, batch_size, total_count)
+        trainer.train(distribution, epochs, batch_size, total_count, model_name)
 
         # Save model
         torch.save(autoencoder.state_dict(), f'{args.model_name}.pth')

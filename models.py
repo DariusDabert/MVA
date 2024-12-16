@@ -112,6 +112,7 @@ class GMVariationalAutoEncoder(nn.Module):
 
         self.fc_pi = nn.Sequential(nn.Linear(latent_dim, nb_classes),
                                       nn.Softmax(dim=1))
+        self.pi = torch.nn.Parameter(torch.ones(nb_classes)/nb_classes, requires_grad=False)
         
         self.fc_mus = torch.nn.ModuleList()
         for i in range(nb_classes):
@@ -161,8 +162,12 @@ class GMVariationalAutoEncoder(nn.Module):
                 lambda_ = self.sigmoid(lambda_)
                 lambda_ = torch.clamp(lambda_, self.eps, 1 - self.eps)
                 recon -= ((pi[:,i] @ distribution(total_count = total_count, probs=lambda_).log_prob(x)).sum())
+
             kld -=  ( 0.5 * torch.sum(pi[:,i] @ (1 + logvar - mu.pow(2) - logvar.exp())))
-            kld_pi -= (pi[:,i] * torch.log(self. nb_classes * pi[:,i])).sum()
+            kld_pi -= (pi[:,i] * torch.log(pi[:,i] / self.pi[i])).sum()
+        
+        # update pi
+        self.pi = pi.mean(dim=0)
 
         loss = recon + kld + kld_pi
 
@@ -234,6 +239,7 @@ class GMVariationalAutoEncoder_transformers(nn.Module):
 
         self.fc_pi = nn.Sequential(nn.Linear(latent_dim, nb_classes),
                                       nn.Softmax(dim=1))
+        self.pi = torch.nn.Parameter(torch.ones(nb_classes)/nb_classes, requires_grad=False)
         
         self.fc_mus = torch.nn.ModuleList()
         for i in range(nb_classes):
@@ -282,7 +288,10 @@ class GMVariationalAutoEncoder_transformers(nn.Module):
                 recon -= ((pi[:,i] @ distribution(total_count=total_count, probs=lambda_).log_prob(x)).sum())
             
             kld -=  ( 0.5 * torch.sum(pi[:,i] @ (1 + logvar - mu.pow(2) - logvar.exp())))
-            kld_pi -= (pi[:,i] * torch.log(self. nb_classes * pi[:,i])).sum()
+            kld_pi -= (pi[:,i] * torch.log(pi[:,i]/self.pi)).sum()
+        
+        # update pi
+        self.pi = pi.mean(dim=0)
 
         loss = recon + kld + kld_pi
 
