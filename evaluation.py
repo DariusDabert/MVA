@@ -44,6 +44,9 @@ class Evaluator():
                 for i in range(x_latent.size(0)):
                     latent[i] = self.model.fc_mus[clusters[i]](x_latent[i]).cpu().numpy()
                 clusters = clusters.cpu().numpy()
+                kmeans = KMeans(n_clusters=self.nb_classes, random_state=42).fit(latent)
+                # get the labels of the clusters
+                clusters = kmeans.labels_
             else:
                 latent = x_latent.cpu().numpy()
                 kmeans = KMeans(n_clusters=self.nb_classes, random_state=42).fit(latent)
