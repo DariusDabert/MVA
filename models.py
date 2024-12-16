@@ -125,7 +125,7 @@ class GMVariationalAutoEncoder(nn.Module):
         self.decoder = Decoder(latent_dim, hidden_dim_dec, input_dim, n_layers_dec) 
         self.softplus = nn.Softplus()
         self.sigmoid = nn.Sigmoid()
-        self.eps = 1e-4
+        self.eps = 1e-6
 
     def reparameterize(self, mu, logvar, eps_scale=1.):
         if self.training:
@@ -140,6 +140,7 @@ class GMVariationalAutoEncoder(nn.Module):
         x_latent = self.encoder(x)
 
         pi = self.fc_pi(x_latent)
+        pi = torch.clamp(pi, self.eps, 1-self.eps)
         mus = [fc_mu(x_latent) for fc_mu in self.fc_mus]
         logvars = [fc_logvar(x_latent) for fc_logvar in self.fc_logvars]
 
@@ -252,6 +253,7 @@ class GMVariationalAutoEncoder_transformers(nn.Module):
         self.decoder = Decoder_transformers(latent_dim, hidden_dim_dec, input_dim, 8, n_layers_dec) 
         self.softplus = nn.Softplus()
         self.sigmoid = nn.Sigmoid()
+        self.eps = 1e-6
 
     def reparameterize(self, mu, logvar, eps_scale=1.):
         if self.training:
@@ -266,6 +268,7 @@ class GMVariationalAutoEncoder_transformers(nn.Module):
         x_latent = self.encoder(x)
 
         pi = self.fc_pi(x_latent)
+        pi = torch.clamp(pi, self.eps, 1-self.eps)
         mus = [fc_mu(x_latent) for fc_mu in self.fc_mus]
         logvars = [fc_logvar(x_latent) for fc_logvar in self.fc_logvars]
 
@@ -282,13 +285,15 @@ class GMVariationalAutoEncoder_transformers(nn.Module):
 
             if distribution == torch.distributions.Poisson:
                 lambda_ = self.softplus(lambda_)
+                lambda_ = torch.clamp(lambda_, self.eps, 1e6)
                 recon -= ((pi[:,i] @ distribution(lambda_).log_prob(x)).sum())
             if distribution == torch.distributions.NegativeBinomial:
                 lambda_ = self.sigmoid(lambda_)
+                lambda_ = torch.clamp(lambda_, self.eps, 1-self.eps)
                 recon -= ((pi[:,i] @ distribution(total_count=total_count, probs=lambda_).log_prob(x)).sum())
             
             kld -=  ( 0.5 * torch.sum(pi[:,i] @ (1 + logvar - mu.pow(2) - logvar.exp())))
-            kld_pi -= (pi[:,i] * torch.log(pi[:,i]/self.pi)).sum()
+            kld_pi -= (pi[:,i] * torch.log(pi[:,i]/self.pi[i])).sum()
         
         # update pi
         self.pi = torch.nn.Parameter(pi.mean(dim=0), requires_grad=False)
