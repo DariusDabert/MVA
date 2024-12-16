@@ -134,7 +134,7 @@ class GMVariationalAutoEncoder(nn.Module):
         else:
             return mu
 
-    def loss_function(self, x, distribution, total_count=None):
+    def loss_function(self, x, distribution, beta, total_count=None):
         x = x.to_dense()
         x_latent = self.encoder(x)
 
@@ -157,16 +157,16 @@ class GMVariationalAutoEncoder(nn.Module):
             if distribution == torch.distributions.Poisson:
                 lambda_ = self.softplus(lambda_)
                 lambda_ = torch.clamp(lambda_, self.eps, 1e6)
-                recon -= ((pi[:,i] @ distribution(lambda_).log_prob(x)).mean())
+                recon -= ((pi[:,i] @ distribution(lambda_).log_prob(x)).sum())
             if distribution == torch.distributions.NegativeBinomial:
                 lambda_ = self.sigmoid(lambda_)
                 lambda_ = torch.clamp(lambda_, self.eps, 1 - self.eps)
-                recon -= ((pi[:,i] @ distribution(total_count = total_count, probs=lambda_).log_prob(x)).mean())
+                recon -= ((pi[:,i] @ distribution(total_count = total_count, probs=lambda_).log_prob(x)).sum())
 
             kld -=  ( 0.5 * torch.sum(pi[:,i] @ (1 + logvar - mu.pow(2) - logvar.exp())))
             kld_pi -= (pi[:,i] * torch.log(pi[:,i] * self.nb_classes)).sum()
 
-        loss = recon + kld + kld_pi
+        loss = recon + beta*(kld + kld_pi)
 
         return loss, recon, kld + kld_pi
     
@@ -285,12 +285,10 @@ class GMVariationalAutoEncoder_transformers(nn.Module):
             if distribution == torch.distributions.NegativeBinomial:
                 lambda_ = self.sigmoid(lambda_)
                 lambda_ = torch.clamp(lambda_, self.eps, 1-self.eps)
-                print((distribution(total_count=total_count, probs=lambda_).log_prob(x)).shape)
-                print((pi[:,i] @ distribution(total_count=total_count, probs=lambda_).log_prob(x)).shape)
-                recon -= ((pi[:,i] @ distribution(total_count=total_count, probs=lambda_).log_prob(x)).mean())
+                recon -= ((pi[:,i] @ (distribution(total_count=total_count, probs=lambda_).log_prob(x))).sum())
             
             kld -=  ( 0.5 * torch.sum(pi[:,i] @ (1 + logvar - mu.pow(2) - logvar.exp())))
-            kld_pi -= (pi[:,i] * torch.log(pi[:,i] * self.nb_classes)).mean()
+            kld_pi -= (pi[:,i] * torch.log(pi[:,i] * self.nb_classes)).sum()
 
         loss = recon + kld + kld_pi
 
