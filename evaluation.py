@@ -46,6 +46,11 @@ class Evaluator():
                     for j in range(pi.size(1)):
                         latent[i] += (pi[i, j] * mus[j][i]).cpu().numpy()
                 clusters = clusters.cpu().numpy()
+                # print number of cells in each cluster
+                clusters_count = np.zeros(self.nb_classes)
+                for i in range(len(clusters)):
+                    clusters_count[clusters[i]] += 1
+                print(clusters_count)
                 # kmeans = KMeans(n_clusters=self.nb_classes, random_state=42).fit(latent)
                 # clusters = kmeans.labels_
             else:

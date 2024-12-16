@@ -287,8 +287,8 @@ class GMVariationalAutoEncoder_transformers(nn.Module):
                 lambda_ = torch.clamp(lambda_, self.eps, 1-self.eps)
                 recon -= ((pi[:,i] @ (distribution(total_count=total_count, probs=lambda_).log_prob(x))).sum())
             
-            kld -=  ( 0.5 * torch.sum(pi[:,i] @ (1 + logvar - mu.pow(2) - logvar.exp())))
-            kld_pi -= (pi[:,i] * torch.log(pi[:,i] * self.nb_classes)).sum()
+            kld +=  (0.5 * torch.sum(pi[:,i] @ (1 + logvar - mu.pow(2) - logvar.exp())))
+            kld_pi += (pi[:,i] * torch.log(pi[:,i] * self.nb_classes)).sum()
 
         loss = recon + beta*(kld + kld_pi)
 
