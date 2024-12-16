@@ -1,6 +1,8 @@
 import torch
 import numpy as np
 from sklearn.manifold import TSNE
+from sklearn.cluster import KMeans
+from sklearn.metrics import adjusted_rand_score
 import matplotlib.pyplot as plt
 
 class Evaluator():
@@ -10,9 +12,10 @@ class Evaluator():
         self.model = model
         self.device = device
         self.y = y
+        self.nb_classes = len(np.unique(y))
         self.eval_file = eval_file
 
-    def evaluate(self):
+    def evaluate_tSNE(self):
         test_idx = [int(i) for i in self.idx[int(0.9*self.idx.size):]]
 
         self.model.load_state_dict(torch.load(self.eval_file, map_location=self.device))
@@ -30,8 +33,21 @@ class Evaluator():
             if hasattr(self.model, 'fc_mu') and hasattr(self.model, 'fc_logvar'):
                 mu = self.model.fc_mu(x_latent)
                 latent = mu.cpu().numpy()
+                kmeans = KMeans(n_clusters=self.nb_classes, random_state=42).fit(latent)
+                # get the labels of the clusters
+                clusters = kmeans.labels_
+
+            if hasattr(self.model, 'fc_pi'):
+                pi = self.model.fc_pi(x_latent)
+                clusters= torch.argmax(pi, dim=1)
+                latent = np.zeros((x_latent.size(0), x_latent.size(1)))
+                for i in range(x_latent.size(0)):
+                    latent[i] = self.model.fc_mus[clusters[i]](x_latent[i]).cpu().numpy()
             else:
                 latent = x_latent.cpu().numpy()
+                kmeans = KMeans(n_clusters=self.nb_classes, random_state=42).fit(latent)
+                # get the labels of the clusters
+                clusters = kmeans.labels_
 
         tsne = TSNE(n_components=2, random_state=42)
         latent_2d = tsne.fit_transform(latent)
@@ -74,3 +90,7 @@ class Evaluator():
         plt.savefig("latent_tsne_plot.png", dpi=300)
         plt.close()
         print("Plot saved as latent_tsne_plot.png")
+
+        rand_index = adjusted_rand_score(y_test, clusters)
+
+        print(f"Adjusted Rand Index: {rand_index}")
