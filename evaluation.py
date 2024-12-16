@@ -39,12 +39,12 @@ class Evaluator():
 
             if hasattr(self.model, 'fc_pi'):
                 pi = self.model.fc_pi(x_latent)
-                mus = self.model.fc_mus(x_latent)
+                mus = [fc_mu(x_latent) for fc_mu in self.fc_mus]
                 clusters = torch.argmax(pi, dim=1)
                 latent = np.zeros((x_latent.size(0), x_latent.size(1)))
                 for i in range(x_latent.size(0)):
                     for j in range(pi.size(1)):
-                        latent[i] += pi[i, j] * mus[i][j].cpu().numpy()
+                        latent[i] += pi[i, j] * mus[j][i].cpu().numpy()
                 clusters = clusters.cpu().numpy()
                 kmeans = KMeans(n_clusters=self.nb_classes, random_state=42).fit(latent)
                 clusters = kmeans.labels_
