@@ -51,7 +51,7 @@ class Trainer():
                 x_batch = torch.stack(x_batch, dim=0)
                 
                 self.optimizer.zero_grad()
-                loss, recon, kld  = self.model.loss_function(x_batch, distribution, betas[epoch], total_count)
+                loss, recon, kld  = self.model.loss_function(x_batch, distribution, 1, total_count)
                 train_loss_all_recon += recon.item()
                 train_loss_all_kld += kld.item()
                 loss.backward()
@@ -73,7 +73,7 @@ class Trainer():
                 
                 x_batch = torch.stack(x_batch, dim=0)
 
-                loss, recon, kld  = self.model.loss_function(x_batch, distribution, betas[epoch], total_count)
+                loss, recon, kld  = self.model.loss_function(x_batch, distribution,1, total_count)
                 val_loss_all_recon += recon.item()
                 val_loss_all_kld += kld.item()
                 val_loss_all += loss.item()
