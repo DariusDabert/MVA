@@ -163,7 +163,7 @@ class GMVariationalAutoEncoder(nn.Module):
                 lambda_ = torch.clamp(lambda_, self.eps, 1 - self.eps)
                 recon -= ((pi[:,i] @ distribution(total_count = total_count, probs=lambda_).log_prob(x)).sum())
 
-            kld -=  ( 0.5 * torch.sum(pi[:,i] @ (1 + logvar - mu.pow(2) - logvar.exp())))
+            kld -=  ( 0.5 * torch.sum(pi[:,i] @ (self.logvars[i] - logvar + (logvar.exp() / self.logvars[i].exp())  + (mu - self.mus[i]).pow(2) / self.logvars[i].exp() - 1)))
             kld_pi += (pi[:,i] * torch.log(pi[:,i] * self.nb_classes)).sum()
 
         loss = recon + beta*(kld + kld_pi)
@@ -240,10 +240,17 @@ class GMVariationalAutoEncoder_transformers(nn.Module):
         self.fc_mus = torch.nn.ModuleList()
         for i in range(nb_classes):
             self.fc_mus.append(nn.Linear(latent_dim,latent_dim))
+
+        # mean for each class
+        self.mus = nn.Parameter(torch.randn(nb_classes, latent_dim))
+
+
         self.fc_logvars = torch.nn.ModuleList()
         for i in range(nb_classes):
             self.fc_logvars.append(nn.Sequential(nn.Linear(latent_dim, latent_dim),
                                         nn.ReLU()))
+            
+        self.logvars = nn.Parameter(torch.randn(nb_classes, latent_dim))
             
         self.decoder = Decoder_transformers(latent_dim, hidden_dim_dec, input_dim, 8, n_layers_dec) 
         self.softplus = nn.Softplus()
@@ -287,7 +294,7 @@ class GMVariationalAutoEncoder_transformers(nn.Module):
                 lambda_ = torch.clamp(lambda_, self.eps, 1-self.eps)
                 recon -= ((pi[:,i] @ (distribution(total_count=total_count, probs=lambda_).log_prob(x))).sum())
             
-            kld -=  (0.5 * torch.sum(pi[:,i] @ (1 + logvar - mu.pow(2) - logvar.exp())))
+            kld -=  (0.5 * torch.sum(pi[:,i] @ (self.logvars[i] - logvar + (logvar.exp() / self.logvars[i].exp())  + (mu - self.mus[i]).pow(2) / self.logvars[i].exp() - 1)))
             kld_pi += (pi[:,i] * torch.log(pi[:,i] * self.nb_classes)).sum()
 
         loss = recon + beta*(kld + kld_pi)
