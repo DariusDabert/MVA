@@ -46,8 +46,8 @@ class Evaluator():
                     for j in range(pi.size(1)):
                         latent[i] += (pi[i, j] * mus[j][i]).cpu().numpy()
                 clusters = clusters.cpu().numpy()
-                kmeans = KMeans(n_clusters=self.nb_classes, random_state=42).fit(latent)
-                clusters = kmeans.labels_
+                # kmeans = KMeans(n_clusters=self.nb_classes, random_state=42).fit(latent)
+                # clusters = kmeans.labels_
             else:
                 latent = x_latent.cpu().numpy()
                 kmeans = KMeans(n_clusters=self.nb_classes, random_state=42).fit(latent)
