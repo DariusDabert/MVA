@@ -39,7 +39,7 @@ class Evaluator():
 
             if hasattr(self.model, 'fc_pi'):
                 pi = self.model.fc_pi(x_latent)
-                mus = [fc_mu(x_latent) for fc_mu in self.fc_mus]
+                mus = [fc_mu(x_latent) for fc_mu in self.model.fc_mus]
                 clusters = torch.argmax(pi, dim=1)
                 latent = np.zeros((x_latent.size(0), x_latent.size(1)))
                 for i in range(x_latent.size(0)):
