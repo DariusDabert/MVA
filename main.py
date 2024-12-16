@@ -89,9 +89,9 @@ def main():
         elif distribution_name == "NegativeBinomial":
             distribution = torch.distributions.NegativeBinomial
 
-        trainer = Trainer(X_torch, idx, autoencoder, optimizer, device)
+        trainer = Trainer(X_torch, idx, autoencoder, optimizer, model_name, device)
 
-        trainer.train(distribution, epochs, batch_size, total_count, model_name)
+        trainer.train(distribution, epochs, batch_size, total_count)
 
         # Save model
         torch.save(autoencoder.state_dict(), f'{args.model_name}.pth')

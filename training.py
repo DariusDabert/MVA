@@ -11,12 +11,13 @@ from utils import sparse_mx_to_torch_sparse
 from models import VariationalAutoEncoder
 
 class Trainer():
-    def __init__(self, X, idx, model, optimizer, device, seed = 42):
+    def __init__(self, X, idx, model, optimizer, model_name, device, seed = 42):
         self.X = X
         self.idx = idx
         self.model = model
         self.optimizer = optimizer
         self.device = device
+        self.model_name = model_name
 
     
     def train(self, distribution, epochs, batch_size, total_count):
@@ -78,10 +79,10 @@ class Trainer():
             
             if best_val_loss > val_loss_all:
                 best_val_loss = val_loss_all
-                torch.save(self.model.state_dict(), 'best_model.pth')
+                torch.save(self.model.state_dict(), f'{self.model_name}.pth')
                 print('Model saved')
 
-            if epoch % 5 == 0:
+            if epoch % 1 == 0:
                 print('Epoch: {:04d}, Train Loss: {:.5f}, Train Reconstruction Loss: {:.2f}, Train KLD Loss: {:.2f}, Val Loss: {:.5f}, Val Reconstruction Loss: {:.2f}, Val KLD Loss: {:.2f}'.format(epoch, train_loss_all/train_count, train_loss_all_recon/train_count, train_loss_all_kld/train_count, val_loss_all/val_count, val_loss_all_recon/val_count, val_loss_all_kld/val_count))
                 
 
