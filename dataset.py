@@ -1,13 +1,80 @@
+import torch
 import requests
 import os
 from scipy.sparse import vstack, coo_matrix
 import tarfile
 from scipy.io import mmread
 import numpy as np
+import csv
+
+
+def coo_submatrix_pull(matr, rows, cols):
+    """
+    Pulls out an arbitrary i.e. non-contiguous submatrix out of
+    a sparse.coo_matrix. 
+    """
+    if type(matr) != coo_matrix:
+        raise TypeError('Matrix must be sparse COOrdinate format')
+    
+    gr = -1 * np.ones(matr.shape[0])
+    gc = -1 * np.ones(matr.shape[1])
+    
+    lr = len(rows)
+    lc = len(cols)
+    
+    ar = np.arange(0, lr)
+    ac = np.arange(0, lc)
+    gr[rows[ar]] = ar
+    gc[cols[ac]] = ac
+    mrow = matr.row
+    mcol = matr.col
+    newelem = (gr[mrow] > -1) & (gc[mcol] > -1)
+    newrows = mrow[newelem]
+    newcols = mcol[newelem]
+    return coo_matrix((matr.data[newelem], np.array([gr[newrows], gc[newcols]])),(lr, lc))
+
+def sub_pbmc_loader(path_to_data, small) :
+    data = mmread(path_to_data).transpose()
+    l,c = data.shape[0], data.shape[1]
+    if small:
+        data = coo_submatrix_pull(data, np.arange(0, int(l*0.1)), np.arange(0, c))
+    return data
+
+def cortex_loader(path_to_data, small) :
+    rows = []
+    gene_names = []
+    with open(path_to_data) as csvfile:
+        data_reader = csv.reader(csvfile, delimiter="\t")
+        for i, row in enumerate(data_reader):
+            if i == 1:
+                precise_clusters = np.asarray(row, dtype=str)[2:]
+            if i == 8:
+                clusters = np.asarray(row, dtype=str)[2:]
+            if i >= 11:
+                rows.append(row[1:])
+                gene_names.append(row[0])
+    cell_types, labels = np.unique(clusters, return_inverse=True)
+    _, precise_labels = np.unique(precise_clusters, return_inverse=True)
+    data = np.asarray(rows, dtype=np.int32).T[1:]
+    gene_names = np.asarray(gene_names, dtype=str)
+    gene_indices = []
+
+    extra_gene_indices = []
+    gene_indices = np.concatenate([gene_indices, extra_gene_indices]).astype(np.int32)
+    if gene_indices.size == 0:
+        gene_indices = slice(None)
+
+    data = data[:, gene_indices]
+    if small:
+        data = data[:1000, :]
+    # gene_names = gene_names[gene_indices]
+    return torch.Tensor(data), torch.Tensor(labels)
+
 
 pbmc_definition = {
     'name': 'PBMC',
     'labels': 'from_dataset',
+    'loader': sub_pbmc_loader,
     'data' : {
         'cd19': {
             'url': 'http://cf.10xgenomics.com/samples/cell-exp/1.1.0/b_cells/b_cells_filtered_gene_bc_matrices.tar.gz',
@@ -57,37 +124,26 @@ pbmc_definition = {
     },
 }
 
-def coo_submatrix_pull(matr, rows, cols):
-    """
-    Pulls out an arbitrary i.e. non-contiguous submatrix out of
-    a sparse.coo_matrix. 
-    """
-    if type(matr) != coo_matrix:
-        raise TypeError('Matrix must be sparse COOrdinate format')
-    
-    gr = -1 * np.ones(matr.shape[0])
-    gc = -1 * np.ones(matr.shape[1])
-    
-    lr = len(rows)
-    lc = len(cols)
-    
-    ar = np.arange(0, lr)
-    ac = np.arange(0, lc)
-    gr[rows[ar]] = ar
-    gc[cols[ac]] = ac
-    mrow = matr.row
-    mcol = matr.col
-    newelem = (gr[mrow] > -1) & (gc[mcol] > -1)
-    newrows = mrow[newelem]
-    newcols = mcol[newelem]
-    return coo_matrix((matr.data[newelem], np.array([gr[newrows], gc[newcols]])),(lr, lc))
+cortex_definition = {
+    'name': 'Cortex',
+    'labels': 'loaded',
+    'loader': cortex_loader,
+    'data' : {
+        'cortex': {
+            'url': 'https://storage.googleapis.com/linnarsson-lab-www-blobs/blobs/cortex/expression_mRNA_17-Aug-2014.txt',
+            'data_path': 'data',
+            'compressed': False
+        }
+    },
+}
 
 class PartialDataset() :
-    def __init__(self, name, url, path, data_path, compressed=True, small=False):
+    def __init__(self, name, url, path, data_path, loader, compressed=True, small=False):
         self.name = name
         self.url = url
         self.path = path
         self.data_path = data_path
+        self.loader = loader
         self.compressed = compressed
         self.small = small
 
@@ -98,7 +154,8 @@ class PartialDataset() :
         print(f'Downloading dataset {self.name}...')
         r = requests.get(self.url)
         os.makedirs(self.path, exist_ok=True)
-        with open(self.path + '/data.tar.gz', 'wb') as f:
+        path = self.path + '/data.tar.gz' if self.compressed else self.path + '/data'
+        with open(path, 'wb') as f:
             f.write(r.content)
         print(f'Dataset {self.name} downloaded')
 
@@ -112,10 +169,11 @@ class PartialDataset() :
         print(f'Dataset {self.name} extracted')
 
     def load(self):
-        self.data = mmread(self.path + '/' + self.data_path).transpose()
-        l,c = self.data.shape[0], self.data.shape[1]
-        if self.small:
-            self.data = coo_submatrix_pull(self.data, np.arange(0, int(l*0.1)), np.arange(0, c))
+        x = self.loader(self.path + '/' + self.data_path, self.small)
+        if type(x) is tuple :
+            self.data, self.labels = x
+        else :
+            self.data = x
 
     def __len__(self):
         return self.data.shape[0]
@@ -137,7 +195,7 @@ class GenomeDataset():
 
     def load_definitions(self):
         for key, value in self.definition['data'].items():
-            self.partials.append(PartialDataset(key, value['url'], self.name + '/' + key, value['data_path'], compressed=value['compressed'], small=self.small))
+            self.partials.append(PartialDataset(key, value['url'], self.name + '/' + key, value['data_path'], self.definition['loader'], compressed=value['compressed'], small=self.small))
 
     def dl_dataset(self):
         print(f'Downloading dataset {self.name}...')
@@ -148,18 +206,27 @@ class GenomeDataset():
     def load_dataset(self):
         print(f'Loading dataset {self.name}...')
 
-        try:
-            if self.definition['labels'] == 'from_dataset':
-                self.labels = []
+        if self.definition['labels'] == 'from_dataset':
+            self.labels = []
 
             for i,partial in enumerate(self.partials):
                 partial.load()
-                if self.definition['labels'] == 'from_dataset':
-                    self.labels += [i] * len(partial)
+                self.labels += [i] * len(partial)
 
-            self.data = vstack([partial.data for partial in self.partials])
-        except:
-            print(f'Error, dataset {self.name} could not be loaded, please check the dataset definition and download state')
+            if len(self.partials) > 1:
+                self.data = vstack([partial.data for partial in self.partials])
+            else:
+                self.data = self.partials[0].data
+        elif self.definition['labels'] == 'loaded':
+            for partial in self.partials:
+                partial.load()
+
+            if len(self.partials) > 1:
+                self.data = vstack([partial.data for partial in self.partials])
+                self.labels = sum([partial.labels for partial in self.partials], [])
+            else:
+                self.data = self.partials[0].data
+                self.labels = self.partials[0].labels
 
     def __len__(self) :
         return self.data.shape[0]
