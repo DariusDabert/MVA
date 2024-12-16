@@ -285,10 +285,12 @@ class GMVariationalAutoEncoder_transformers(nn.Module):
             if distribution == torch.distributions.NegativeBinomial:
                 lambda_ = self.sigmoid(lambda_)
                 lambda_ = torch.clamp(lambda_, self.eps, 1-self.eps)
+                print((distribution(total_count=total_count, probs=lambda_).log_prob(x)).shape)
+                print((pi[:,i] @ distribution(total_count=total_count, probs=lambda_).log_prob(x)).shape)
                 recon -= ((pi[:,i] @ distribution(total_count=total_count, probs=lambda_).log_prob(x)).mean())
             
             kld -=  ( 0.5 * torch.sum(pi[:,i] @ (1 + logvar - mu.pow(2) - logvar.exp())))
-            kld_pi -= (pi[:,i] * torch.log(pi[:,i] * self.nb_classes)).sum()
+            kld_pi -= (pi[:,i] * torch.log(pi[:,i] * self.nb_classes)).mean()
 
         loss = recon + kld + kld_pi
 
