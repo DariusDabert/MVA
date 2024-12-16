@@ -124,7 +124,7 @@ class GMVariationalAutoEncoder(nn.Module):
         self.decoder = Decoder(latent_dim, hidden_dim_dec, input_dim, n_layers_dec) 
         self.softplus = nn.Softplus()
         self.sigmoid = nn.Sigmoid()
-        self.eps = 1e-6
+        self.eps = 1e-4
 
     def reparameterize(self, mu, logvar, eps_scale=1.):
         if self.training:
