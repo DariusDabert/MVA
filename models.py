@@ -66,7 +66,8 @@ class VariationalAutoEncoder(nn.Module):
         self.input_dim = input_dim
         self.encoder = Encoder(input_dim, hidden_dim_enc, latent_dim, n_layers_enc)
         self.fc_mu = nn.Linear(latent_dim, latent_dim)
-        self.fc_logvar = nn.Linear(latent_dim, latent_dim)
+        self.fc_logvar = nn.Sequential(nn.Linear(latent_dim, latent_dim),
+                                        nn.ReLU())
         self.decoder = Decoder(latent_dim, hidden_dim_dec, input_dim, n_layers_dec) 
         self.softplus = nn.Softplus()
         self.sigmoid = nn.Sigmoid()
