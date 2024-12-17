@@ -32,7 +32,8 @@ class Trainer():
 
         # Train autoencoder
         best_val_loss = np.inf
-        betas = np.linspace(0.1, 1, epochs+2)
+        betas = np.linspace(-10, 0, epochs+2)
+        betas = np.exp(betas)
         for epoch in range(1, epochs+1):
             self.model.train()
             train_loss_all = 0
@@ -59,7 +60,7 @@ class Trainer():
                 train_loss_all_recon += recon.item()
                 train_loss_all_kld += kld.item()
                 loss.backward()
-                train_loss_all += loss.item()
+                train_loss_all += kld.item() + recon.item()
                 self.optimizer.step()
 
             self.model.eval()
@@ -83,7 +84,7 @@ class Trainer():
                 loss, recon, kld  = self.model.loss_function(x_batch, distribution,betas[epoch], total_count)
                 val_loss_all_recon += recon.item()
                 val_loss_all_kld += kld.item()
-                val_loss_all += loss.item()
+                val_loss_all += kld.item() + recon.item()
             
             if best_val_loss > val_loss_all:
                 best_val_loss = val_loss_all

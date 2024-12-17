@@ -101,7 +101,7 @@ class VariationalAutoEncoder(nn.Module):
             lambda_ = torch.clamp(lambda_, self.eps, 1 - self.eps)
             recon = - distribution(total_count= total_count, probs=lambda_).log_prob(x).sum()
         
-        kld = 0.5 * torch.sum(self.latent_dim * logvar.exp().pow(2) + mu.pow(2) - self.latent_dim - 2 * self.latent_dim * logvar)
+        kld = 0.5 * torch.sum(logvar.exp().pow(2) + mu.pow(2) - 1 - 2 * logvar)
         loss = recon + beta*kld
 
         return loss, recon, kld
@@ -175,7 +175,7 @@ class GMVariationalAutoEncoder(nn.Module):
                 lambda_ = torch.clamp(lambda_, self.eps, 1 - self.eps)
                 recon -= ((pi[:,i] @ distribution(total_count = total_count, probs=lambda_).log_prob(x)).sum())
 
-            kld += 0.5 * torch.sum(pi[:,i] @ ( (logvar.exp()/ self.logvars[i]).pow(2) + (mu - self.mus[i]).pow(2)/self.logvars[i].pow(2) - 1 - 2 * logvar + 2 * self.logvars[i]))
+            kld += 0.5 * torch.sum(pi[:,i] @ ( (logvar.exp()/ self.logvars[i].exp()).pow(2) + (mu - self.mus[i]).pow(2)/self.logvars[i].exp().pow(2) - 1 - 2 * logvar + 2 * self.logvars[i]))
             kld_pi += (pi[:,i] * torch.log(pi[:,i] * self.nb_classes)).sum()
 
         loss = recon + beta*(kld + kld_pi)
@@ -307,11 +307,11 @@ class GMVariationalAutoEncoder_transformers(nn.Module):
                 recon -= ((pi[:,i] @ (distribution(total_count=total_count, probs=lambda_).log_prob(x))).sum())
 
             
-            kld += 0.5 * torch.sum(pi[:,i] @ (  (logvar.exp()/ self.logvars[i]).pow(2) + (mu - self.mus[i]).pow(2)/self.logvars[i].pow(2) - 1- 2 * logvar + 2 * self.logvars[i]))
+            kld += 0.5 * torch.sum(pi[:,i] @ (  (logvar.exp()/ self.logvars[i].exp()).pow(2) + (mu - self.mus[i]).pow(2)/self.logvars[i].exp().pow(2) - 1- 2 * logvar + 2 * self.logvars[i]))
         kld_pi += (pi * torch.log(pi * self.nb_classes)).sum()
 
-        loss = recon 
+        loss = recon + beta*(kld + kld_pi)
 
-        return loss, recon, beta*(kld + kld_pi)
+        return loss, recon, kld + kld_pi
 
     

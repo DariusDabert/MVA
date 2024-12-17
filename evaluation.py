@@ -18,7 +18,7 @@ class Evaluator():
     def evaluate_tSNE(self):
         test_idx = [int(i) for i in self.idx[int(0.9*self.idx.size):]]
 
-        self.model.load_state_dict(torch.load(self.eval_file, map_location=self.device))
+        self.model.load_state_dict(torch.load(f"{self.eval_file}.pth", map_location=self.device))
         self.model.eval()
 
         X_test_list = []
@@ -51,8 +51,8 @@ class Evaluator():
                 for i in range(len(clusters)):
                     clusters_count[clusters[i]] += 1
                 print(clusters_count)
-                # kmeans = KMeans(n_clusters=self.nb_classes, random_state=42).fit(latent)
-                # clusters = kmeans.labels_
+                kmeans = KMeans(n_clusters=self.nb_classes, random_state=42).fit(latent)
+                clusters_k = kmeans.labels_
             else:
                 latent = x_latent.cpu().numpy()
                 kmeans = KMeans(n_clusters=self.nb_classes, random_state=42).fit(latent)
@@ -103,3 +103,7 @@ class Evaluator():
         rand_index = adjusted_rand_score(y_test, clusters)
 
         print(f"Adjusted Rand Index: {rand_index}")
+
+        if hasattr(self.model, 'fc_pi'):
+            rand_index = adjusted_rand_score(y_test, clusters_k)
+            print(f"Adjusted Rand Index with k-means: {rand_index}")
