@@ -328,6 +328,6 @@ class GMVariationalAutoEncoder_transformers(nn.Module):
 
         loss = recon + beta*(kld + kld_pi)
 
-        return loss, recon, kld + kld_pi
+        return loss, recon, beta*(kld + kld_pi)
 
     

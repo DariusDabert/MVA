@@ -6,19 +6,21 @@ from sklearn.metrics import adjusted_rand_score
 import matplotlib.pyplot as plt
 
 class Evaluator():
-    def __init__(self, X, idx, model, device, y, eval_file):
+    def __init__(self, X, idx, model, distribution, total_count, device, y, eval_file):
         self.X = X
         self.idx = idx
         self.model = model
         self.device = device
         self.y = y
+        self.distribution = distribution
+        self.total_count = total_count
         self.nb_classes = len(np.unique(y))
         self.eval_file = eval_file
 
     def evaluate(self):
         test_idx = [int(i) for i in self.idx[int(0.9*self.idx.size):]]
 
-        self.model.load_state_dict(torch.load(f"{self.eval_file}.pth", map_location=self.device))
+        self.model.load_state_dict(torch.load(f"models/{self.eval_file}.pth", map_location=self.device))
         self.model.eval()
 
         X_test_list = []
@@ -57,6 +59,10 @@ class Evaluator():
                 latent = x_latent.cpu().numpy()
                 kmeans = KMeans(n_clusters=self.nb_classes, random_state=42).fit(latent)
                 clusters = kmeans.labels_
+            
+            loss, _, _ = self.model.loss_function(X_test, self.distribution, 1, self.total_count)
+            loss = loss.item()
+            loss /= X_test.size(0)
 
         tsne = TSNE(n_components=2, random_state=42)
         latent_2d = tsne.fit_transform(latent)
@@ -108,3 +114,5 @@ class Evaluator():
         else:
             rand_index = adjusted_rand_score(y_test, clusters)
             print(f"Adjusted Rand Index: {rand_index}")
+        
+        print(f"Loss: {loss}")

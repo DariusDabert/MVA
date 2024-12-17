@@ -83,6 +83,14 @@ def main():
     
     idx = np.random.default_rng(seed=args.seed).permutation(len(X_torch)) # for reproducibility
 
+    distribution_name = args.likelihood_distrib
+    if distribution_name == "Poisson":
+        distribution = torch.distributions.Poisson 
+    elif distribution_name == "NegativeBinomial":
+        distribution = torch.distributions.NegativeBinomial
+    else:
+        raise ValueError("Unknown distribution")
+
     if args.training:
         optimizer_name = args.optimizer
         if optimizer_name == "Adam":
@@ -94,23 +102,14 @@ def main():
         else:
             raise ValueError("Unknown optimizer")
 
-
-        distribution_name = args.likelihood_distrib
-        if distribution_name == "Poisson":
-            distribution = torch.distributions.Poisson 
-        elif distribution_name == "NegativeBinomial":
-            distribution = torch.distributions.NegativeBinomial
-        else:
-            raise ValueError("Unknown distribution")
-
         trainer = Trainer(X_torch, idx, autoencoder, optimizer, args.model_path, device)
 
         trainer.train(distribution, epochs, batch_size, total_count)
 
-        torch.save(autoencoder.state_dict(), f'{args.model_path}.pth')
+        torch.save(autoencoder.state_dict(), f'models/{args.model_path}.pth')
     
     if args.evaluate:
-        evaluator = Evaluator(X_torch, idx, autoencoder, device, y, args.model_path)
+        evaluator = Evaluator(X_torch, idx, autoencoder, distribution, total_count, device, y, args.model_path)
         evaluator.evaluate()  # compute tSNE and rand index
 
 if __name__ == "__main__":
