@@ -15,7 +15,7 @@ class Evaluator():
         self.nb_classes = len(np.unique(y))
         self.eval_file = eval_file
 
-    def evaluate_tSNE(self):
+    def evaluate(self):
         test_idx = [int(i) for i in self.idx[int(0.9*self.idx.size):]]
 
         self.model.load_state_dict(torch.load(f"{self.eval_file}.pth", map_location=self.device))
@@ -28,30 +28,30 @@ class Evaluator():
         y_test = np.array(self.y)[test_idx]
 
         with torch.no_grad():
-            x_latent = self.model.encoder(X_test.to_dense())
+            x_latent = self.model.encoder(X_test.to_dense()) # get latent space before reparametrization
 
-            if hasattr(self.model, 'fc_mu') and hasattr(self.model, 'fc_logvar'):
+            if hasattr(self.model, 'fc_mu') and hasattr(self.model, 'fc_logvar'): # VAE
                 mu = self.model.fc_mu(x_latent)
-                latent = mu.cpu().numpy()
-                kmeans = KMeans(n_clusters=self.nb_classes, random_state=42).fit(latent)
-                # get the labels of the clusters
-                clusters = kmeans.labels_
+                latent = mu.cpu().numpy() # latent representation
 
-            if hasattr(self.model, 'fc_pi'):
+                kmeans = KMeans(n_clusters=self.nb_classes, random_state=42).fit(latent)
+                clusters = kmeans.labels_ # cluster assignments
+
+            if hasattr(self.model, 'fc_pi'): # GMVAE
                 pi = self.model.fc_pi(x_latent)
                 mus = [fc_mu(x_latent) for fc_mu in self.model.fc_mus]
-                clusters = torch.argmax(pi, dim=1)
+                clusters = torch.argmax(pi, dim=1) # cluster assignments with highest probability
                 latent = np.zeros((x_latent.size(0), x_latent.size(1)))
                 for i in range(x_latent.size(0)):
                     for j in range(pi.size(1)):
-                        latent[i] += (pi[i, j] * mus[j][i]).cpu().numpy()
+                        latent[i] += (pi[i, j] * mus[j][i]).cpu().numpy() # latent representation
                 clusters = clusters.cpu().numpy()
-                # print number of cells in each cluster
-                clusters_count = np.zeros(self.nb_classes)
-                for i in range(len(clusters)):
-                    clusters_count[clusters[i]] += 1
-                print(clusters_count)
-                kmeans = KMeans(n_clusters=self.nb_classes, random_state=42).fit(latent)
+                # For test
+                # clusters_count = np.zeros(self.nb_classes)
+                # for i in range(len(clusters)):
+                #     clusters_count[clusters[i]] += 1
+                # print(clusters_count)
+                kmeans = KMeans(n_clusters=self.nb_classes, random_state=42).fit(latent) # k-means clustering, because GMVAE has collapsed clusters
                 clusters_k = kmeans.labels_
             else:
                 latent = x_latent.cpu().numpy()
@@ -100,10 +100,11 @@ class Evaluator():
         plt.close()
         print("Plot saved as latent_tsne_plot.png")
 
-        rand_index = adjusted_rand_score(y_test, clusters)
-
-        print(f"Adjusted Rand Index: {rand_index}")
-
-        if hasattr(self.model, 'fc_pi'):
+        if hasattr(self.model, 'fc_pi'): # GMVAE
+            rand_index = adjusted_rand_score(y_test, clusters)
+            print(f"Adjusted Rand Index with categorical probability: {rand_index}")
             rand_index = adjusted_rand_score(y_test, clusters_k)
             print(f"Adjusted Rand Index with k-means: {rand_index}")
+        else:
+            rand_index = adjusted_rand_score(y_test, clusters)
+            print(f"Adjusted Rand Index: {rand_index}")

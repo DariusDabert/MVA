@@ -65,10 +65,15 @@ class VariationalAutoEncoder(nn.Module):
         super(VariationalAutoEncoder, self).__init__()
         self.input_dim = input_dim
         self.latent_dim = latent_dim
+
         self.encoder = Encoder(input_dim, hidden_dim_enc, latent_dim, n_layers_enc)
+        
+        # reparametrization trick
         self.fc_mu = nn.Linear(latent_dim, latent_dim)
         self.fc_logvar = nn.Linear(latent_dim, latent_dim)
+
         self.decoder = Decoder(latent_dim, hidden_dim_dec, input_dim, n_layers_dec) 
+
         self.softplus = nn.Softplus()
         self.sigmoid = nn.Sigmoid()
         self.eps = 1e-6
@@ -96,10 +101,13 @@ class VariationalAutoEncoder(nn.Module):
             lambda_ = self.softplus(lambda_)
             lambda_ = torch.clamp(lambda_, self.eps, 1e6)
             recon = - distribution(lambda_).log_prob(x).sum()
-        if distribution == torch.distributions.NegativeBinomial:
+
+        elif distribution == torch.distributions.NegativeBinomial:
             lambda_ = self.sigmoid(lambda_)
             lambda_ = torch.clamp(lambda_, self.eps, 1 - self.eps)
             recon = - distribution(total_count= total_count, probs=lambda_).log_prob(x).sum()
+        else :
+            raise ValueError('Distribution not implemented')
         
         kld = 0.5 * torch.sum(logvar.exp().pow(2) + mu.pow(2) - 1 - 2 * logvar)
         loss = recon + beta*kld
@@ -113,6 +121,7 @@ class GMVariationalAutoEncoder(nn.Module):
         self.input_dim = input_dim
         self.latent_dim = latent_dim
         self.nb_classes = nb_classes
+
         self.encoder = Encoder(input_dim, hidden_dim_enc, latent_dim, n_layers_enc)
 
         self.fc_pi = nn.Sequential(nn.Linear(latent_dim, nb_classes),
@@ -124,16 +133,15 @@ class GMVariationalAutoEncoder(nn.Module):
 
         self.mus = nn.Parameter(torch.randn(nb_classes, latent_dim))
 
-
         self.fc_logvars = torch.nn.ModuleList()
         for i in range(nb_classes):
             self.fc_logvars.append(nn.Linear(latent_dim, latent_dim))
-        
+
         # logvar for each class
         self.logvars = nn.Parameter(torch.randn(nb_classes, latent_dim))
-
             
         self.decoder = Decoder(latent_dim, hidden_dim_dec, input_dim, n_layers_dec) 
+
         self.softplus = nn.Softplus()
         self.sigmoid = nn.Sigmoid()
         self.eps = 1e-6
@@ -152,6 +160,7 @@ class GMVariationalAutoEncoder(nn.Module):
 
         pi = self.fc_pi(x_latent)
         pi = torch.clamp(pi, self.eps, 1-self.eps)
+
         mus = [fc_mu(x_latent) for fc_mu in self.fc_mus]
         logvars = [fc_logvar(x_latent) for fc_logvar in self.fc_logvars]
 
@@ -170,10 +179,13 @@ class GMVariationalAutoEncoder(nn.Module):
                 lambda_ = self.softplus(lambda_)
                 lambda_ = torch.clamp(lambda_, self.eps, 1e6)
                 recon -= ((pi[:,i] @ distribution(lambda_).log_prob(x)).sum())
-            if distribution == torch.distributions.NegativeBinomial:
+
+            elif distribution == torch.distributions.NegativeBinomial:
                 lambda_ = self.sigmoid(lambda_)
                 lambda_ = torch.clamp(lambda_, self.eps, 1 - self.eps)
                 recon -= ((pi[:,i] @ distribution(total_count = total_count, probs=lambda_).log_prob(x)).sum())
+            else:
+                raise ValueError('Distribution not implemented')
 
             kld += 0.5 * torch.sum(pi[:,i] @ ( (logvar.exp()/ self.logvars[i].exp()).pow(2) + (mu - self.mus[i]).pow(2)/self.logvars[i].exp().pow(2) - 1 - 2 * logvar + 2 * self.logvars[i]))
             kld_pi += (pi[:,i] * torch.log(pi[:,i] * self.nb_classes)).sum()
@@ -245,6 +257,7 @@ class GMVariationalAutoEncoder_transformers(nn.Module):
         self.input_dim = input_dim
         self.latent_dim = latent_dim
         self.nb_classes = nb_classes
+
         self.encoder = Encoder_transformers(input_dim, hidden_dim_enc, latent_dim, 8, n_layers_enc)
 
         self.fc_pi = nn.Sequential(nn.Linear(latent_dim, nb_classes),
@@ -253,10 +266,8 @@ class GMVariationalAutoEncoder_transformers(nn.Module):
         self.fc_mus = torch.nn.ModuleList()
         for i in range(nb_classes):
             self.fc_mus.append(nn.Linear(latent_dim,latent_dim))
-
         # mean for each class
         self.mus = nn.Parameter(torch.randn(nb_classes, latent_dim))
-
 
         self.fc_logvars = torch.nn.ModuleList()
         for i in range(nb_classes):
@@ -265,6 +276,7 @@ class GMVariationalAutoEncoder_transformers(nn.Module):
         self.logvars = nn.Parameter(torch.randn(nb_classes, latent_dim))
             
         self.decoder = Decoder_transformers(latent_dim, hidden_dim_dec, input_dim, 8, n_layers_dec) 
+
         self.softplus = nn.Softplus()
         self.sigmoid = nn.Sigmoid()
         self.eps = 1e-6
@@ -283,6 +295,7 @@ class GMVariationalAutoEncoder_transformers(nn.Module):
 
         pi = self.fc_pi(x_latent)
         pi = torch.clamp(pi, self.eps, 1-self.eps)
+
         mus = [fc_mu(x_latent) for fc_mu in self.fc_mus]
         logvars = [fc_logvar(x_latent) for fc_logvar in self.fc_logvars]
 
@@ -301,11 +314,14 @@ class GMVariationalAutoEncoder_transformers(nn.Module):
                 lambda_ = self.softplus(lambda_)
                 lambda_ = torch.clamp(lambda_, self.eps, 1e6)
                 recon -= ((pi[:,i] @ distribution(lambda_).log_prob(x)).sum())
-            if distribution == torch.distributions.NegativeBinomial:
+
+            elif distribution == torch.distributions.NegativeBinomial:
                 lambda_ = self.sigmoid(lambda_)
                 lambda_ = torch.clamp(lambda_, self.eps, 1-self.eps)
                 recon -= ((pi[:,i] @ (distribution(total_count=total_count, probs=lambda_).log_prob(x))).sum())
-
+            
+            else:
+                raise ValueError('Distribution not implemented')
             
             kld += 0.5 * torch.sum(pi[:,i] @ (  (logvar.exp()/ self.logvars[i].exp()).pow(2) + (mu - self.mus[i]).pow(2)/self.logvars[i].exp().pow(2) - 1- 2 * logvar + 2 * self.logvars[i]))
         kld_pi += (pi * torch.log(pi * self.nb_classes)).sum()

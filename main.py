@@ -30,7 +30,7 @@ def main():
     parser.add_argument('--training', type=bool, help="If you want to train the model", default=False)
     parser.add_argument('--small', type=bool, help="If you want to train the model with small dataset", default=False)
     parser.add_argument('--evaluate', type=bool, help="If you want to evaluate the model", default=False)
-    parser.add_argument('--model_path', type=str, help="The model file to load during evaluation")
+    parser.add_argument('--model_path', type=str, help="The model file to load during evaluation and to save during training", default="GMVariationalAutoEncoder.pth")
 
     args = parser.parse_args()
 
@@ -38,10 +38,10 @@ def main():
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    # Hyperparameters
     epochs = args.epochs
     batch_size = args.batch_size
 
+    # Load dataset from the net and put them in the right format
     dataset_name = args.dataset
     if dataset_name == "pbmc":
         G = GenomeDataset(pbmc_definition, download=True, small=args.small)
@@ -54,13 +54,15 @@ def main():
 
     X = G.data
     y = G.labels
-    total_count = X.max()
+    total_count = X.max() # for NB distribution
 
+    # Convert to torch tensor if not already
     if type(X) != torch.Tensor:
         X_torch = sparse_mx_to_torch_sparse(X).to(device)
     else:
         X_torch = X.to(device)
 
+    # get hyperparameters
     n_layers_encoder = args.n_layers
     latent_dim = args.latent_dim
     hidden_dim_encoder = args.hidden_dim   
@@ -78,8 +80,8 @@ def main():
         autoencoder = GMVariationalAutoEncoder_transformers(input_feats, hidden_dim_encoder, hidden_dim_decoder, latent_dim, n_layers_encoder, n_layers_decoder, nb_classes).to(device)
     else:
         raise ValueError("Unknown model")
-
-    idx = np.random.default_rng(seed=args.seed).permutation(len(X_torch))
+    
+    idx = np.random.default_rng(seed=args.seed).permutation(len(X_torch)) # for reproducibility
 
     if args.training:
         optimizer_name = args.optimizer
@@ -101,16 +103,15 @@ def main():
         else:
             raise ValueError("Unknown distribution")
 
-        trainer = Trainer(X_torch, idx, autoencoder, optimizer, model_name, device)
+        trainer = Trainer(X_torch, idx, autoencoder, optimizer, args.model_path, device)
 
         trainer.train(distribution, epochs, batch_size, total_count)
 
-        # Save model
-        torch.save(autoencoder.state_dict(), f'{args.model_name}.pth')
+        torch.save(autoencoder.state_dict(), f'{args.model_path}.pth')
     
     if args.evaluate:
         evaluator = Evaluator(X_torch, idx, autoencoder, device, y, args.model_path)
-        evaluator.evaluate_tSNE()
+        evaluator.evaluate()  # compute tSNE and rand index
 
 if __name__ == "__main__":
     main()

@@ -22,18 +22,16 @@ class Trainer():
     
     def train(self, distribution, epochs, batch_size, total_count):
         # Slit into training and validation sets
-
         train_idx = [int(i) for i in self.idx[:int(0.81*self.idx.size)]]
         val_idx = [int(i) for i in self.idx[int(0.81*self.idx.size):int(0.9*self.idx.size)]]
 
         n_train = len(train_idx)
         n_val = len(val_idx)
 
-
         # Train autoencoder
         best_val_loss = np.inf
         betas = np.linspace(-10, 0, epochs+2)
-        betas = np.exp(betas)
+        betas = np.exp(betas) # to avoid over regularizing
         for epoch in range(1, epochs+1):
             self.model.train()
             train_loss_all = 0
@@ -49,7 +47,6 @@ class Trainer():
                     for j in range(i, min(n_train, i+batch_size)):
                         x_batch.append(self.X[train_idx[j]])
                         train_count += 1
-                    
                     x_batch = torch.stack(x_batch, dim=0)
                 else:
                     x_batch = self.X[train_idx[i:min(n_train, i+batch_size)]]
@@ -81,7 +78,7 @@ class Trainer():
                     x_batch = self.X[val_idx[i:min(n_val, i+batch_size)]]
                     val_count += x_batch.size(0)
 
-                loss, recon, kld  = self.model.loss_function(x_batch, distribution,betas[epoch], total_count)
+                loss, recon, kld  = self.model.loss_function(x_batch, distribution, betas[epoch], total_count)
                 val_loss_all_recon += recon.item()
                 val_loss_all_kld += kld.item()
                 val_loss_all += kld.item() + recon.item()
