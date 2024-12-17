@@ -70,6 +70,7 @@ class VariationalAutoEncoder(nn.Module):
         self.decoder = Decoder(latent_dim, hidden_dim_dec, input_dim, n_layers_dec) 
         self.softplus = nn.Softplus()
         self.sigmoid = nn.Sigmoid()
+        self.eps = 1e-6
 
     def reparameterize(self, mu, logvar, eps_scale=1.):
         if self.training:
@@ -92,9 +93,11 @@ class VariationalAutoEncoder(nn.Module):
 
         if distribution == torch.distributions.Poisson:
             lambda_ = self.softplus(lambda_)
+            lambda_ = torch.clamp(lambda_, self.eps, 1e6)
             recon = - distribution(lambda_).log_prob(x).sum()
         if distribution == torch.distributions.NegativeBinomial:
             lambda_ = self.sigmoid(lambda_)
+            lambda_ = torch.clamp(lambda_, self.eps, 1 - self.eps)
             recon = - distribution(total_count= total_count, probs=lambda_).log_prob(x).sum()
         
         kld = torch.sum(0.5 + logvar - mu.pow(2)/logvar.exp().pow(2) - logvar.exp().pow(2)/2)
