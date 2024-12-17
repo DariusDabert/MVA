@@ -111,6 +111,7 @@ class GMVariationalAutoEncoder(nn.Module):
     def __init__(self, input_dim, hidden_dim_enc, hidden_dim_dec, latent_dim, n_layers_enc, n_layers_dec, nb_classes):
         super(GMVariationalAutoEncoder, self).__init__()
         self.input_dim = input_dim
+        self.latent_dim = latent_dim
         self.nb_classes = nb_classes
         self.encoder = Encoder(input_dim, hidden_dim_enc, latent_dim, n_layers_enc)
 
@@ -242,6 +243,7 @@ class GMVariationalAutoEncoder_transformers(nn.Module):
     def __init__(self, input_dim, hidden_dim_enc, hidden_dim_dec, latent_dim, n_layers_enc, n_layers_dec, nb_classes):
         super(GMVariationalAutoEncoder_transformers, self).__init__()
         self.input_dim = input_dim
+        self.latent_dim = latent_dim
         self.nb_classes = nb_classes
         self.encoder = Encoder_transformers(input_dim, hidden_dim_enc, latent_dim, 8, n_layers_enc)
 
