@@ -175,7 +175,7 @@ class GMVariationalAutoEncoder(nn.Module):
                 lambda_ = torch.clamp(lambda_, self.eps, 1 - self.eps)
                 recon -= ((pi[:,i] @ distribution(total_count = total_count, probs=lambda_).log_prob(x)).sum())
 
-            kld += 0.5 * torch.sum(pi[:,i] @ ( self.latent_dim * (logvar.exp()/ self.logvars[i]).pow(2) + (mu - self.mus[i]).pow(2)/self.logvars[i].pow(2) - self.latent_dim - 2 * self.latent_dim * logvar + 2 * self.latent_dim * self.logvars[i]))
+            kld += 0.5 * torch.sum(pi[:,i] @ ( (logvar.exp()/ self.logvars[i]).pow(2) + (mu - self.mus[i]).pow(2)/self.logvars[i].pow(2) - 1 - 2 * logvar + 2 * self.logvars[i]))
             kld_pi += (pi[:,i] * torch.log(pi[:,i] * self.nb_classes)).sum()
 
         loss = recon + beta*(kld + kld_pi)
@@ -277,113 +277,41 @@ class GMVariationalAutoEncoder_transformers(nn.Module):
         else:
             return mu
 
-    # def loss_function(self, x, distribution, beta, total_count=None):
-    #     x = x.to_dense()
-    #     x_latent = self.encoder(x)
-
-    #     pi = self.fc_pi(x_latent)
-    #     pi = torch.clamp(pi, self.eps, 1-self.eps)
-    #     mus = [fc_mu(x_latent) for fc_mu in self.fc_mus]
-    #     logvars = [fc_logvar(x_latent) for fc_logvar in self.fc_logvars]
-
-    #     recon = 0
-    #     kld = 0
-    #     kld_pi = 0
-    #     log_probs = []
-        
-    #     for i in range(len(mus)):
-    #         mu = mus[i]
-    #         logvar = logvars[i]
-    #         z = self.reparameterize(mu, logvar)
-
-    #         lambda_ = self.decoder(z)
-
-    #         if distribution == torch.distributions.Poisson:
-    #             lambda_ = self.softplus(lambda_)
-    #             lambda_ = torch.clamp(lambda_, self.eps, 1e6)
-    #             log_prob = distribution(lambda_).log_prob(x).sum(dim=1)  # Log-prob for current component
-    #             log_probs.append(torch.log(pi[:, i] + self.eps) + log_prob)
-    #             #recon -= ((pi[:,i] @ distribution(lambda_).log_prob(x)).sum())
-    #         if distribution == torch.distributions.NegativeBinomial:
-    #             lambda_ = self.sigmoid(lambda_)
-    #             lambda_ = torch.clamp(lambda_, self.eps, 1-self.eps)
-    #             log_prob = distribution(total_count=total_count, probs=lambda_).log_prob(x).sum(dim=1)  # Log-prob for current component
-    #             log_probs.append(torch.log(pi[:, i] + self.eps) + log_prob)
-    #             #recon -= ((pi[:,i] @ (distribution(total_count=total_count, probs=lambda_).log_prob(x))).sum())
-
-            
-    #         kld += 0.5 * torch.sum(pi[:,i] @ ( self.latent_dim * (logvar.exp()/ self.logvars[i]).pow(2) + (mu - self.mus[i]).pow(2)/self.logvars[i].pow(2) - self.latent_dim - 2 * self.latent_dim * logvar + 2 * self.latent_dim * self.logvars[i]))
-    #     log_prob_sum = torch.logsumexp(torch.stack(log_probs, dim=1), dim=1)
-    #     recon = -log_prob_sum.mean()
-    #     kld_pi += (pi * torch.log(pi * self.nb_classes)).sum()
-
-    #     loss = recon + beta*(kld + kld_pi)
-
-    #     return loss, recon, beta*(kld + kld_pi)
-
     def loss_function(self, x, distribution, beta, total_count=None):
         x = x.to_dense()
         x_latent = self.encoder(x)
 
-        # Mixing coefficients q(y|x)
-        pi = self.fc_pi(x_latent)  # Logits for q(y|x)
-        pi = torch.clamp(pi, self.eps, 1 - self.eps)  # Avoid numerical instability
+        pi = self.fc_pi(x_latent)
+        pi = torch.clamp(pi, self.eps, 1-self.eps)
+        mus = [fc_mu(x_latent) for fc_mu in self.fc_mus]
+        logvars = [fc_logvar(x_latent) for fc_logvar in self.fc_logvars]
 
-        # Parameters for q(z|x, y=k)
-        mus_q = [fc_mu(x_latent) for fc_mu in self.fc_mus]
-        logvars_q = [fc_logvar(x_latent) for fc_logvar in self.fc_logvars]
+        recon = 0
+        kld = 0
+        kld_pi = 0
+        
+        for i in range(len(mus)):
+            mu = mus[i]
+            logvar = logvars[i]
+            z = self.reparameterize(mu, logvar)
 
-        # Parameters of the prior p(z|y=k)
-        mus_p = self.mus  # Learnable means for p(z|y=k)
-        logvars_p = self.logvars  # Learnable log variances for p(z|y=k)
-
-        log_probs = []  # Store log p(x|z) for each component
-        kld_latent_terms = []  # Store KL divergences for q(z|x,y=k) || p(z|y=k)
-
-        # Prior p(y): uniform
-        log_prior_y = torch.log(torch.tensor(1.0 / self.nb_classes, device=pi.device))
-
-        for k in range(self.nb_classes):
-            # Parameters for q(z|x, y=k)
-            mu_q = mus_q[k]
-            logvar_q = logvars_q[k]
-            sigma_q = torch.exp(0.5 * logvar_q)  # Standard deviation
-
-            # Parameters for p(z|y=k)
-            mu_p = self.mus[k]
-            logvar_p = self.logvars[k]
-            sigma_p = torch.exp(0.5 * logvar_p)
-
-            # Reparameterize: sample z ~ q(z|x,y=k)
-            z = self.reparameterize(mu_q, logvar_q)
-
-            # Reconstruction term: log p(x|z)
             lambda_ = self.decoder(z)
+
             if distribution == torch.distributions.Poisson:
-                lambda_ = torch.clamp(self.softplus(lambda_), self.eps, 1e6)
-                log_prob = distribution(lambda_).log_prob(x).sum(dim=1)
-            elif distribution == torch.distributions.NegativeBinomial:
-                lambda_ = torch.clamp(self.sigmoid(lambda_), self.eps, 1 - self.eps)
-                log_prob = distribution(total_count=total_count, probs=lambda_).log_prob(x).sum(dim=1)
-            else:
-                raise NotImplementedError("Distribution not supported")
+                lambda_ = self.softplus(lambda_)
+                lambda_ = torch.clamp(lambda_, self.eps, 1e6)
+                recon -= ((pi[:,i] @ distribution(lambda_).log_prob(x)).sum())
+            if distribution == torch.distributions.NegativeBinomial:
+                lambda_ = self.sigmoid(lambda_)
+                lambda_ = torch.clamp(lambda_, self.eps, 1-self.eps)
+                recon -= ((pi[:,i] @ (distribution(total_count=total_count, probs=lambda_).log_prob(x))).sum())
 
-            # KL divergence: q(z|x,y=k) || p(z|y=k)
-            kld_latent = 0.5 * torch.sum(
-                logvar_p - logvar_q + (sigma_q.pow(2) + (mu_q - mu_p).pow(2)) / sigma_p.pow(2) - 1, dim=1
-            )
-            kld_latent_terms.append(kld_latent)
+            
+            kld += 0.5 * torch.sum(pi[:,i] @ (  (logvar.exp()/ self.logvars[i]).pow(2) + (mu - self.mus[i]).pow(2)/self.logvars[i].pow(2) - 1- 2 * logvar + 2 * self.logvars[i]))
+        kld_pi += (pi * torch.log(pi * self.nb_classes)).sum()
 
-            # Log probability of this component
-            log_probs.append(torch.log(pi[:, k] + self.eps) + log_prob - kld_latent)
+        loss = recon + beta*(kld + kld_pi)
 
-        # Log-sum-exp for reconstruction term
-        log_prob_sum = torch.logsumexp(torch.stack(log_probs, dim=1), dim=1)
-        recon = -log_prob_sum.mean()
+        return loss, recon, beta*(kld + kld_pi)
 
-        # KL divergence for q(y|x) || p(y)
-        kl_y = torch.sum(pi * torch.log(pi * self.nb_classes + self.eps), dim=1).mean()
-
-        # Total loss
-        loss = recon + beta * (kl_y)
-        return loss, recon, beta * kl_y
+    
