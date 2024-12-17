@@ -76,7 +76,7 @@ def retina_loader(path_to_data, small):
     m = np.array(f['matrix'])
     data = torch.Tensor(m).transpose(0, 1)
     l = np.array(f['col_attrs']['ClusterID'])
-    labels = torch.Tensor(l)
+    labels = torch.Tensor(l).squeeze()
 
     if small:
         data = data[:3000, :]
