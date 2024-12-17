@@ -109,7 +109,7 @@ def main():
         torch.save(autoencoder.state_dict(), f'models/{args.model_path}.pth')
     
     if args.evaluate:
-        evaluator = Evaluator(X_torch, idx, autoencoder, distribution, total_count, device, y, args.model_path)
+        evaluator = Evaluator(X_torch, args.dataset, idx, autoencoder, distribution, total_count, device, y, args.model_path)
         evaluator.evaluate()  # compute tSNE and rand index
 
 if __name__ == "__main__":

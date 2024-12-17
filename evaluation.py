@@ -6,8 +6,9 @@ from sklearn.metrics import adjusted_rand_score
 import matplotlib.pyplot as plt
 
 class Evaluator():
-    def __init__(self, X, idx, model, distribution, total_count, device, y, eval_file):
+    def __init__(self, X, dataset, idx, model, distribution, total_count, device, y, eval_file):
         self.X = X
+        self.dataset = dataset
         self.idx = idx
         self.model = model
         self.device = device
@@ -67,29 +68,67 @@ class Evaluator():
         tsne = TSNE(n_components=2, random_state=42)
         latent_2d = tsne.fit_transform(latent)
 
-        cell_types = [
-            "CD19+ B cells",
-            "CD34+ cells",
-            "CD4+ helper T cells",
-            "CD4+/CD25+ regulatory T cells",
-            "CD4+/CD45RA+/CD25- naïve T cells",
-            "CD4+/CD45RO+ memory T cells",
-            "CD56+ natural killer cells",
-            "CD8+ cytotoxic T cells",
-            "CD8+/CD45RA+ naïve cytotoxic T cells"
-        ]
+        if self.dataset == "pbmc":
 
-        colors = [
-            "#ff0000",  # Bright Red
-            "#00ff00",  # Bright Green
-            "#0000ff",  # Bright Blue
-            "#ffff00",  # Yellow
-            "#ff00ff",  # Magenta
-            "#00ffff",  # Cyan
-            "#800000",  # Maroon
-            "#808000",  # Olive
-            "#000000"   # Black
-        ]
+            cell_types = [
+                "CD19+ B cells",
+                "CD34+ cells",
+                "CD4+ helper T cells",
+                "CD4+/CD25+ regulatory T cells",
+                "CD4+/CD45RA+/CD25- naïve T cells",
+                "CD4+/CD45RO+ memory T cells",
+                "CD56+ natural killer cells",
+                "CD8+ cytotoxic T cells",
+                "CD8+/CD45RA+ naïve cytotoxic T cells"
+            ]
+
+            colors = [
+                "#ff0000",  # Bright Red
+                "#00ff00",  # Bright Green
+                "#0000ff",  # Bright Blue
+                "#ffff00",  # Yellow
+                "#ff00ff",  # Magenta
+                "#00ffff",  # Cyan
+                "#800000",  # Maroon
+                "#808000",  # Olive
+                "#000000"   # Black
+            ]
+        elif self.dataset == "retina":
+            cell_types = [
+                "RBC",
+                "MG",
+                "BC5A",
+                "BC7",
+                "BC6",
+                "BC5C",
+                "BC1A",
+                "BC3B",
+                "BC1B",
+                "BC2",
+                "BC5D",
+                "BC3A",
+                "BC5B",
+                "BC4",
+                "BC8_9",
+            ]
+
+            colors = [
+                "#ff0000",  # Bright Red
+                "#00ff00",  # Bright Green
+                "#0000ff",  # Bright Blue
+                "#ffff00",  # Yellow
+                "#ff00ff",  # Magenta
+                "#00ffff",  # Cyan
+                "#800000",  # Maroon
+                "#808000",  # Olive
+                "#000000",  # Black
+                "#008000",  # Green
+                "#800080",  # Purple
+                "#008080",  # Teal
+                "#808080",  # Gray
+                "#c0c0c0",  # Silver
+                "#ff8000"   # Orange
+            ]
 
 
         plt.figure(figsize=(10, 8))
