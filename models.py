@@ -92,12 +92,12 @@ class VariationalAutoEncoder(nn.Module):
 
         if distribution == torch.distributions.Poisson:
             lambda_ = self.softplus(lambda_)
-            recon = - distribution(lambda_).log_prob(x).mean()
+            recon = - distribution(lambda_).log_prob(x).sum()
         if distribution == torch.distributions.NegativeBinomial:
             lambda_ = self.sigmoid(lambda_)
-            recon = - distribution(total_count= total_count, probs=lambda_).log_prob(x).mean()
+            recon = - distribution(total_count= total_count, probs=lambda_).log_prob(x).sum()
         
-        kld =  0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+        kld = torch.sum(0.5 + logvar - mu.pow(2)/logvar.exp().pow(2) - logvar.exp().pow(2)/2)
         loss = recon + kld
 
         return loss, recon, kld
