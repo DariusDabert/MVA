@@ -79,7 +79,7 @@ class VariationalAutoEncoder(nn.Module):
         else:
             return mu
 
-    def loss_function(self, x, distribution, total_count=None):
+    def loss_function(self, x, distribution, beta, total_count=None):
         x = x.to_dense()
         x_latent = self.encoder(x)
     
@@ -98,7 +98,7 @@ class VariationalAutoEncoder(nn.Module):
             recon = - distribution(total_count= total_count, probs=lambda_).log_prob(x).sum()
         
         kld = torch.sum(0.5 + logvar - mu.pow(2)/logvar.exp().pow(2) - logvar.exp().pow(2)/2)
-        loss = recon + kld
+        loss = recon + beta*kld
 
         return loss, recon, kld
 
