@@ -101,7 +101,7 @@ class VariationalAutoEncoder(nn.Module):
             lambda_ = torch.clamp(lambda_, self.eps, 1 - self.eps)
             recon = - distribution(total_count= total_count, probs=lambda_).log_prob(x).sum()
         
-        kld = torch.sum(0.5 + logvar - mu.pow(2)/logvar.exp().pow(2) - logvar.exp().pow(2)/2)
+        kld = torch.sum(-0.5 - logvar + mu.pow(2)/logvar.exp().pow(2) + logvar.exp().pow(2)/2)
         loss = recon + beta*kld
 
         return loss, recon, kld
