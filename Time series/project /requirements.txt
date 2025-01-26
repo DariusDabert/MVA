@@ -1,0 +1,6 @@
+numpy>=1.19.5
+tensorflow>=2.14
+torch>=1.9
+matplotlib>=3.4
+-e git+https://github.com/nla-group/ABBA.git#egg=ABBA
+coverage==6.0
