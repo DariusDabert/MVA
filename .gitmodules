@@ -1,0 +1,3 @@
+[submodule "LLM/LLM_cool_fusion"]
+	path = LLM/LLM_cool_fusion
+	url = https://github.com/DariusDabert/LLM_cool_fusion.git
